@@ -102,20 +102,8 @@ export function SectionRow({
         placeholder="Section name"
       />
 
-      {/* Duration (seconds) */}
-      <div className="flex items-center gap-1">
-        <Input
-          type="number"
-          value={section.duration}
-          onChange={(e) => onUpdate('duration', parseFloat(e.target.value) || 0)}
-          min={1}
-          className="h-8 w-16 bg-void border-border text-center font-mono"
-        />
-        <span className="text-xs text-muted-foreground">sec</span>
-      </div>
-
       {/* Carrier Frequency */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center justify-center gap-1">
         <Input
           type="number"
           value={section.carrier}
@@ -127,8 +115,8 @@ export function SectionRow({
         <span className="text-xs text-muted-foreground">Hz</span>
       </div>
 
-      {/* Beat Frequency */}
-      <div className="flex items-center gap-1">
+      {/* Pulse (Beat) Frequency */}
+      <div className="flex items-center justify-center gap-1">
         <Input
           type="number"
           value={section.beat}
@@ -139,6 +127,18 @@ export function SectionRow({
           className="h-8 w-16 bg-void border-accent/50 text-center font-mono text-accent"
         />
         <span className="text-xs text-muted-foreground">Hz</span>
+      </div>
+
+      {/* Duration (seconds) */}
+      <div className="flex items-center justify-center gap-1">
+        <Input
+          type="number"
+          value={section.duration}
+          onChange={(e) => onUpdate('duration', parseFloat(e.target.value) || 0)}
+          min={1}
+          className="h-8 w-16 bg-void border-border text-center font-mono"
+        />
+        <span className="text-xs text-muted-foreground">sec</span>
       </div>
 
       {/* Volume Slider */}

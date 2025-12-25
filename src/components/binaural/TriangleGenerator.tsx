@@ -220,10 +220,11 @@ export function TriangleGenerator({
             </div>
 
             {/* Labels */}
-            <div className="absolute inset-0 pointer-events-none text-[9px] text-muted-foreground uppercase tracking-wider">
-              <span className="absolute -top-4 left-1/2 -translate-x-1/2">Pulse ↑</span>
-              <span className="absolute -bottom-4 left-0">Carrier ←</span>
-              <span className="absolute -bottom-4 right-0">→ Carrier</span>
+            <div className="absolute inset-0 pointer-events-none text-[10px] text-muted-foreground uppercase tracking-wider">
+              <span className="absolute top-1 left-1/2 -translate-x-1/2">Focus</span>
+              <span className="absolute bottom-1 left-2">Ground</span>
+              <span className="absolute bottom-1 left-1/2 -translate-x-1/2">Deep</span>
+              <span className="absolute bottom-1 right-2">Mind</span>
             </div>
 
             {/* Canvas for wave effect */}
