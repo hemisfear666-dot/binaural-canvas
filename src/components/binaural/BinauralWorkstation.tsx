@@ -45,7 +45,7 @@ export function BinauralWorkstation() {
   } = useHistory<Track>(defaultTrack);
 
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
-  const [activeEditIndex, setActiveEditIndex] = useState<number | null>(null);
+  const [activeEditIndex, setActiveEditIndex] = useState<number | null>(0);
   const [helpOpen, setHelpOpen] = useState(false);
   const [pixelsPerSecond, setPixelsPerSecond] = useState(8);
   const containerRef = useRef<HTMLDivElement>(null);
