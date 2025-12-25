@@ -104,12 +104,12 @@ export function SectionList({
       {/* Header */}
       <div className="grid grid-cols-[24px_40px_2fr_1fr_1fr_1fr_120px_auto] gap-4 px-3 py-2 text-xs uppercase tracking-widest text-muted-foreground font-medium">
         <div></div>
-        <div>#</div>
+        <div className="text-center">#</div>
         <div>Name</div>
-        <div>Duration</div>
-        <div>Carrier</div>
-        <div>Beat</div>
-        <div>Volume</div>
+        <div className="text-center">Carrier</div>
+        <div className="text-center">Pulse</div>
+        <div className="text-center">Duration</div>
+        <div className="text-center">Volume</div>
         <div className="text-right">Actions</div>
       </div>
 
