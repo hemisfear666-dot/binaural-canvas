@@ -107,22 +107,22 @@ export function SectionList({
         <div className="text-center">#</div>
         <div>Name</div>
 
-        {/* Center the control-group width inside the column, but place the label over the input */}
-        <div className="grid grid-cols-[4rem_auto] justify-center items-center gap-x-1">
+        {/* Shrink-to-fit & center inside the 90px column; label sits over the number box (w-16) */}
+        <div className="grid w-fit justify-self-center justify-items-center grid-cols-[4rem_auto] items-center gap-x-1">
           <span className="text-center">Carrier</span>
           <span className="opacity-0 text-xs">Hz</span>
         </div>
-        <div className="grid grid-cols-[4rem_auto] justify-center items-center gap-x-1">
+        <div className="grid w-fit justify-self-center justify-items-center grid-cols-[4rem_auto] items-center gap-x-1">
           <span className="text-center">Pulse</span>
           <span className="opacity-0 text-xs">Hz</span>
         </div>
-        <div className="grid grid-cols-[4rem_auto] justify-center items-center gap-x-1">
+        <div className="grid w-fit justify-self-center justify-items-center grid-cols-[4rem_auto] items-center gap-x-1">
           <span className="text-center">Duration</span>
           <span className="opacity-0 text-xs">sec</span>
         </div>
 
-        {/* Center mute+slider group; align label over the slider */}
-        <div className="grid grid-cols-[1.75rem_5rem] justify-center items-center gap-x-2">
+        {/* Shrink-to-fit & center inside the 120px column; label sits over the slider (w-20) */}
+        <div className="grid w-fit justify-self-center justify-items-center grid-cols-[1.75rem_5rem] items-center gap-x-2">
           <span className="opacity-0">\u00a0</span>
           <span className="text-center">Volume</span>
         </div>
