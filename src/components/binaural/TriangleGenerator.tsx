@@ -181,14 +181,6 @@ export function TriangleGenerator({
             ref={containerRef}
             className="relative mx-auto select-none max-w-full"
             style={{ width: UI.width, height: UI.height, maxWidth: '100%' }}
-            onMouseDown={(e) => {
-              if (disabled) return;
-              const rect = containerRef.current?.getBoundingClientRect();
-              if (rect) {
-                handlePuckMove(e.clientX, e.clientY);
-                setIsDragging(true);
-              }
-            }}
           >
             {/* Triangle Background */}
             <div

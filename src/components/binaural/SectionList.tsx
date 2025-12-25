@@ -102,7 +102,7 @@ export function SectionList({
   return (
     <div className="space-y-2">
       {/* Header */}
-      <div className="grid grid-cols-[24px_40px_2fr_1fr_1fr_1fr_120px_auto] gap-4 px-3 py-2 text-xs uppercase tracking-widest text-muted-foreground font-medium">
+      <div className="grid grid-cols-[24px_40px_2fr_90px_90px_90px_120px_auto] gap-4 px-3 py-2 text-xs uppercase tracking-widest text-muted-foreground font-medium">
         <div></div>
         <div className="text-center">#</div>
         <div>Name</div>

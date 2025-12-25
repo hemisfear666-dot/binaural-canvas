@@ -67,7 +67,7 @@ export function SectionRow({
       onDrop={(e) => onDrop(e, index)}
       onDragEnd={onDragEnd}
       className={`
-        grid grid-cols-[24px_40px_2fr_1fr_1fr_1fr_120px_auto] gap-4 items-center
+        grid grid-cols-[24px_40px_2fr_90px_90px_90px_120px_auto] gap-4 items-center
         p-3 rounded-lg transition-all duration-200
         ${isEditing ? 'bg-primary/20 border-2 border-primary glow-blue ring-2 ring-primary/30' : ''}
         ${isSelected && !isEditing ? 'bg-accent/10 border border-accent/50 glow-red' : ''}
