@@ -4,19 +4,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
-import { GripVertical, Volume2, VolumeX, Play, Trash2 } from 'lucide-react';
+import { GripVertical, Volume2, VolumeX, Play, Trash2, Edit3 } from 'lucide-react';
 
 interface SectionRowProps {
   section: Section;
   index: number;
   isActive: boolean;
   isSelected: boolean;
+  isEditing: boolean;
   isDragging: boolean;
   isDragOver: boolean;
   onUpdate: (field: keyof Section, value: string | number | boolean) => void;
   onDelete: () => void;
   onTest: () => void;
   onToggleSelect: () => void;
+  onEditClick: () => void;
   onDragStart: (e: React.DragEvent, index: number) => void;
   onDragOver: (e: React.DragEvent, index: number) => void;
   onDragLeave: () => void;
@@ -29,12 +31,14 @@ export function SectionRow({
   index,
   isActive,
   isSelected,
+  isEditing,
   isDragging,
   isDragOver,
   onUpdate,
   onDelete,
   onTest,
   onToggleSelect,
+  onEditClick,
   onDragStart,
   onDragOver,
   onDragLeave,
@@ -42,22 +46,33 @@ export function SectionRow({
   onDragEnd,
 }: SectionRowProps) {
   const rowRef = useRef<HTMLDivElement>(null);
+  const dragHandleRef = useRef<HTMLDivElement>(null);
+
+  const handleDragStartInternal = (e: React.DragEvent) => {
+    // Only allow drag from the grip handle
+    if (dragHandleRef.current && !dragHandleRef.current.contains(e.target as Node)) {
+      e.preventDefault();
+      return;
+    }
+    onDragStart(e, index);
+  };
 
   return (
     <div
       ref={rowRef}
       draggable
-      onDragStart={(e) => onDragStart(e, index)}
+      onDragStart={handleDragStartInternal}
       onDragOver={(e) => onDragOver(e, index)}
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, index)}
       onDragEnd={onDragEnd}
       className={`
         grid grid-cols-[24px_40px_2fr_1fr_1fr_1fr_120px_auto] gap-4 items-center
-        p-3 rounded-lg transition-all duration-200 cursor-grab
-        ${isSelected ? 'bg-accent/10 border border-accent/50 glow-red' : ''}
-        ${isActive && !isSelected ? 'bg-primary/10 border border-primary glow-blue' : ''}
-        ${!isActive && !isSelected ? 'bg-void-surface border border-transparent hover:border-border' : ''}
+        p-3 rounded-lg transition-all duration-200
+        ${isEditing ? 'bg-primary/20 border-2 border-primary glow-blue ring-2 ring-primary/30' : ''}
+        ${isSelected && !isEditing ? 'bg-accent/10 border border-accent/50 glow-red' : ''}
+        ${isActive && !isSelected && !isEditing ? 'bg-primary/10 border border-primary glow-blue' : ''}
+        ${!isActive && !isSelected && !isEditing ? 'bg-void-surface border border-transparent hover:border-border' : ''}
         ${isDragging ? 'opacity-40 border-dashed border-accent' : ''}
         ${isDragOver ? 'border-2 border-dashed border-accent scale-[1.01]' : ''}
         animate-slide-in
@@ -74,8 +89,8 @@ export function SectionRow({
       </div>
 
       {/* Drag Handle & Index */}
-      <div className="flex items-center gap-1">
-        <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
+      <div ref={dragHandleRef} className="flex items-center gap-1 cursor-grab">
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
         <span className="text-xs font-mono text-muted-foreground">{index + 1}</span>
       </div>
 
@@ -148,6 +163,15 @@ export function SectionRow({
 
       {/* Actions */}
       <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onEditClick}
+          className={`h-7 w-7 ${isEditing ? 'text-primary bg-primary/20' : 'text-muted-foreground hover:text-primary hover:bg-primary/10'}`}
+          title="Edit with generator"
+        >
+          <Edit3 className="h-3 w-3" />
+        </Button>
         <Button
           variant="ghost"
           size="sm"
