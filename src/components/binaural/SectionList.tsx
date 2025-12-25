@@ -7,15 +7,19 @@ import { Plus } from 'lucide-react';
 interface SectionListProps {
   sections: Section[];
   currentSectionIndex: number | null;
+  selectedIndices: Set<number>;
   onSectionsChange: (sections: Section[]) => void;
   onTestSection: (index: number) => void;
+  onToggleSelect: (index: number) => void;
 }
 
 export function SectionList({
   sections,
   currentSectionIndex,
+  selectedIndices,
   onSectionsChange,
   onTestSection,
+  onToggleSelect,
 }: SectionListProps) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -94,7 +98,8 @@ export function SectionList({
   return (
     <div className="space-y-2">
       {/* Header */}
-      <div className="grid grid-cols-[40px_2fr_1fr_1fr_1fr_120px_auto] gap-4 px-3 py-2 text-xs uppercase tracking-widest text-muted-foreground font-medium">
+      <div className="grid grid-cols-[24px_40px_2fr_1fr_1fr_1fr_120px_auto] gap-4 px-3 py-2 text-xs uppercase tracking-widest text-muted-foreground font-medium">
+        <div></div>
         <div>#</div>
         <div>Name</div>
         <div>Duration</div>
@@ -112,11 +117,13 @@ export function SectionList({
             section={section}
             index={index}
             isActive={currentSectionIndex === index}
+            isSelected={selectedIndices.has(index)}
             isDragging={dragIndex === index}
             isDragOver={dragOverIndex === index}
             onUpdate={(field, value) => handleUpdate(index, field, value)}
             onDelete={() => handleDelete(index)}
             onTest={() => onTestSection(index)}
+            onToggleSelect={() => onToggleSelect(index)}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -130,7 +137,7 @@ export function SectionList({
       <Button
         variant="outline"
         onClick={handleAdd}
-        className="w-full border-dashed border-border hover:border-primary hover:bg-primary/5 text-muted-foreground hover:text-primary"
+        className="w-full border-dashed border-accent/50 hover:border-accent hover:bg-accent/5 text-accent/70 hover:text-accent"
       >
         <Plus className="h-4 w-4 mr-2" />
         Add Section
