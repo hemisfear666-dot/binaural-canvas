@@ -103,13 +103,30 @@ export function SectionList({
     <div className="space-y-2">
       {/* Header */}
       <div className="grid grid-cols-[24px_40px_2fr_90px_90px_90px_120px_auto] gap-4 px-3 py-2 text-xs uppercase tracking-widest text-muted-foreground font-medium">
-        <div></div>
+        <div />
         <div className="text-center">#</div>
         <div>Name</div>
-        <div className="text-center pl-2">Carrier</div>
-        <div className="text-center pl-2">Pulse</div>
-        <div className="text-center pl-2">Duration</div>
-        <div className="pl-6">Volume</div>
+
+        {/* Align headers to the editable controls (input width + unit label) */}
+        <div className="flex items-center justify-center gap-1">
+          <span className="w-16 text-center">Carrier</span>
+          <span className="w-5" aria-hidden="true" />
+        </div>
+        <div className="flex items-center justify-center gap-1">
+          <span className="w-16 text-center">Pulse</span>
+          <span className="w-5" aria-hidden="true" />
+        </div>
+        <div className="flex items-center justify-center gap-1">
+          <span className="w-16 text-center">Duration</span>
+          <span className="w-7" aria-hidden="true" />
+        </div>
+
+        {/* Match row layout: mute button + slider */}
+        <div className="flex items-center gap-2">
+          <span className="w-7" aria-hidden="true" />
+          <span className="w-20 text-center">Volume</span>
+        </div>
+
         <div className="text-right">Actions</div>
       </div>
 
