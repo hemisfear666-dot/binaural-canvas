@@ -106,10 +106,10 @@ export function SectionList({
         <div></div>
         <div className="text-center">#</div>
         <div>Name</div>
-        <div className="text-center">Carrier</div>
-        <div className="text-center">Pulse</div>
-        <div className="text-center">Duration</div>
-        <div className="text-center">Volume</div>
+        <div className="text-center pl-2">Carrier</div>
+        <div className="text-center pl-2">Pulse</div>
+        <div className="text-center pl-2">Duration</div>
+        <div className="pl-6">Volume</div>
         <div className="text-right">Actions</div>
       </div>
 
