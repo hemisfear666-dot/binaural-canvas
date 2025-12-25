@@ -13,6 +13,7 @@ import { PresetLibrary } from './PresetLibrary';
 import { Button } from '@/components/ui/button';
 import { Undo2, Redo2, Copy, Trash2, CheckSquare, Square } from 'lucide-react';
 import { toast } from 'sonner';
+import logo from '@/assets/logo.png';
 
 const defaultSections: Section[] = [
   { id: 'intro', name: 'Intro - Relaxation', duration: 60, carrier: 100, beat: 7.83, volume: 0.7, muted: false },
@@ -234,11 +235,14 @@ export function BinauralWorkstation() {
       {/* Header */}
       <header className="p-6 border-b border-accent/20">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-sm font-light uppercase tracking-[0.3em] text-accent">
-              Binaural Extension
-            </h1>
-            <h2 className="text-2xl font-semibold text-foreground mt-1">Beat Lab</h2>
+          <div className="flex items-center gap-3">
+            <img src={logo} alt="Binaural Extension Logo" className="h-12 w-auto" />
+            <div>
+              <h1 className="text-sm font-light uppercase tracking-[0.3em] text-white">
+                Binaural Extension
+              </h1>
+              <h2 className="text-2xl font-semibold text-white mt-1">Beat Lab</h2>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <TransportControls
