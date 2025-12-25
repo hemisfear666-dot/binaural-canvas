@@ -13,6 +13,7 @@ export interface Track {
   sections: Section[];
   masterVolume: number;
   isIsochronic: boolean;
+  bpm: number;
 }
 
 export type PlaybackState = 'stopped' | 'playing' | 'paused';

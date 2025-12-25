@@ -10,7 +10,9 @@ import { ImportExport } from './ImportExport';
 import { StatusBar } from './StatusBar';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { PresetLibrary } from './PresetLibrary';
+import { TriangleGenerator } from './TriangleGenerator';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Undo2, Redo2, Copy, Trash2, CheckSquare, Square } from 'lucide-react';
 import { toast } from 'sonner';
 import logo from '@/assets/logo.png';
@@ -28,6 +30,7 @@ const defaultTrack: Track = {
   sections: defaultSections,
   masterVolume: 0.5,
   isIsochronic: false,
+  bpm: 120,
 };
 
 export function BinauralWorkstation() {
@@ -42,6 +45,7 @@ export function BinauralWorkstation() {
   } = useHistory<Track>(defaultTrack);
 
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+  const [activeEditIndex, setActiveEditIndex] = useState<number | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [pixelsPerSecond, setPixelsPerSecond] = useState(8);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -209,29 +213,35 @@ export function BinauralWorkstation() {
     toast.success(`Added "${preset.name}"`);
   }, [track.sections, handleSectionsChange]);
 
+  // BPM handler
+  const handleBpmChange = useCallback((bpm: number) => {
+    setTrack((prev) => ({ ...prev, bpm: Math.max(20, Math.min(300, bpm)) }));
+  }, [setTrack]);
+
+  // Active section for triangle generator
+  const activeSection = activeEditIndex !== null ? track.sections[activeEditIndex] : null;
+
+  const handleGeneratorCarrierChange = useCallback((carrier: number) => {
+    if (activeEditIndex === null) return;
+    const newSections = [...track.sections];
+    newSections[activeEditIndex] = { ...newSections[activeEditIndex], carrier };
+    handleSectionsChange(newSections);
+  }, [activeEditIndex, track.sections, handleSectionsChange]);
+
+  const handleGeneratorPulseChange = useCallback((pulse: number) => {
+    if (activeEditIndex === null) return;
+    const newSections = [...track.sections];
+    newSections[activeEditIndex] = { ...newSections[activeEditIndex], beat: pulse };
+    handleSectionsChange(newSections);
+  }, [activeEditIndex, track.sections, handleSectionsChange]);
+
+  // Section edit click handler
+  const handleSectionEditClick = useCallback((index: number) => {
+    setActiveEditIndex(prev => prev === index ? null : index);
+  }, []);
+
   return (
     <div className="min-h-screen pb-12" style={{ background: 'var(--gradient-void)' }}>
-      {/* Keyboard Shortcuts Handler */}
-      <KeyboardShortcuts
-        isOpen={helpOpen}
-        onOpenChange={setHelpOpen}
-        onPlay={handlePlay}
-        onPause={pause}
-        onStop={stop}
-        onSkip={handleSkip}
-        onNextSection={handleNextSection}
-        onPrevSection={handlePrevSection}
-        onUndo={undo}
-        onRedo={redo}
-        onSelectAll={handleSelectAll}
-        onDeleteSelected={handleDeleteSelected}
-        onDuplicateSelected={handleDuplicateSelected}
-        onDeselectAll={handleDeselectAll}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        isPlaying={playbackState === 'playing'}
-      />
-
       {/* Header */}
       <header className="p-6 border-b border-accent/20">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -241,7 +251,12 @@ export function BinauralWorkstation() {
               <h1 className="text-sm font-light uppercase tracking-[0.3em] text-white">
                 Binaural Extension
               </h1>
-              <h2 className="text-2xl font-semibold text-white mt-1">Beat Lab</h2>
+              <div className="flex items-center gap-2 mt-1">
+                <h2 className="text-2xl font-semibold text-white">Beat Lab</h2>
+                <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 bg-accent/20 text-accent border border-accent/50 rounded">
+                  Beta
+                </span>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -261,12 +276,26 @@ export function BinauralWorkstation() {
       <main className="max-w-7xl mx-auto p-6 space-y-6" ref={containerRef}>
         {/* Global Controls + Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <GlobalControls
-            masterVolume={track.masterVolume}
-            onVolumeChange={handleVolumeChange}
-            isIsochronic={track.isIsochronic}
-            onModeChange={handleModeChange}
-          />
+          <div className="flex items-center gap-4">
+            <GlobalControls
+              masterVolume={track.masterVolume}
+              onVolumeChange={handleVolumeChange}
+              isIsochronic={track.isIsochronic}
+              onModeChange={handleModeChange}
+            />
+            {/* BPM Control */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs uppercase tracking-wider text-muted-foreground">BPM</span>
+              <Input
+                type="number"
+                value={track.bpm}
+                onChange={(e) => handleBpmChange(parseInt(e.target.value) || 120)}
+                min={20}
+                max={300}
+                className="h-8 w-16 bg-void border-border text-center font-mono"
+              />
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             {/* Undo/Redo */}
             <Button
@@ -379,13 +408,22 @@ export function BinauralWorkstation() {
               sections={track.sections}
               currentSectionIndex={currentSectionIndex}
               selectedIndices={selectedIndices}
+              activeEditIndex={activeEditIndex}
               onSectionsChange={handleSectionsChange}
               onTestSection={handleTestSection}
               onToggleSelect={handleToggleSelect}
+              onEditClick={handleSectionEditClick}
             />
           </div>
 
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 space-y-4">
+            <TriangleGenerator
+              carrier={activeSection?.carrier ?? 200}
+              pulse={activeSection?.beat ?? 10}
+              onCarrierChange={handleGeneratorCarrierChange}
+              onPulseChange={handleGeneratorPulseChange}
+              disabled={activeEditIndex === null}
+            />
             <ImportExport
               track={track}
               onImport={handleImport}

@@ -8,18 +8,22 @@ interface SectionListProps {
   sections: Section[];
   currentSectionIndex: number | null;
   selectedIndices: Set<number>;
+  activeEditIndex: number | null;
   onSectionsChange: (sections: Section[]) => void;
   onTestSection: (index: number) => void;
   onToggleSelect: (index: number) => void;
+  onEditClick: (index: number) => void;
 }
 
 export function SectionList({
   sections,
   currentSectionIndex,
   selectedIndices,
+  activeEditIndex,
   onSectionsChange,
   onTestSection,
   onToggleSelect,
+  onEditClick,
 }: SectionListProps) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -118,12 +122,14 @@ export function SectionList({
             index={index}
             isActive={currentSectionIndex === index}
             isSelected={selectedIndices.has(index)}
+            isEditing={activeEditIndex === index}
             isDragging={dragIndex === index}
             isDragOver={dragOverIndex === index}
             onUpdate={(field, value) => handleUpdate(index, field, value)}
             onDelete={() => handleDelete(index)}
             onTest={() => onTestSection(index)}
             onToggleSelect={() => onToggleSelect(index)}
+            onEditClick={() => onEditClick(index)}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
