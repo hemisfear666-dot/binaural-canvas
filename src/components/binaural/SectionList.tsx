@@ -102,29 +102,29 @@ export function SectionList({
   return (
     <div className="space-y-2">
       {/* Header */}
-      <div className="grid grid-cols-[24px_40px_2fr_90px_90px_90px_120px_auto] gap-4 px-3 py-2 text-xs uppercase tracking-widest text-muted-foreground font-medium">
+      <div className="grid grid-cols-[24px_40px_2fr_90px_90px_90px_120px_auto] gap-4 items-center px-3 py-2 text-xs uppercase tracking-widest text-muted-foreground font-medium">
         <div />
         <div className="text-center">#</div>
         <div>Name</div>
 
-        {/* Align headers to the editable controls (input width + unit label) */}
-        <div className="flex items-center justify-center gap-1">
-          <span className="w-16 text-center">Carrier</span>
-          <span className="w-5" aria-hidden="true" />
+        {/* Center the control-group width inside the column, but place the label over the input */}
+        <div className="grid grid-cols-[4rem_auto] justify-center items-center gap-x-1">
+          <span className="text-center">Carrier</span>
+          <span className="opacity-0 text-xs">Hz</span>
         </div>
-        <div className="flex items-center justify-center gap-1">
-          <span className="w-16 text-center">Pulse</span>
-          <span className="w-5" aria-hidden="true" />
+        <div className="grid grid-cols-[4rem_auto] justify-center items-center gap-x-1">
+          <span className="text-center">Pulse</span>
+          <span className="opacity-0 text-xs">Hz</span>
         </div>
-        <div className="flex items-center justify-center gap-1">
-          <span className="w-16 text-center">Duration</span>
-          <span className="w-7" aria-hidden="true" />
+        <div className="grid grid-cols-[4rem_auto] justify-center items-center gap-x-1">
+          <span className="text-center">Duration</span>
+          <span className="opacity-0 text-xs">sec</span>
         </div>
 
-        {/* Match row layout: mute button + slider */}
-        <div className="flex items-center gap-2">
-          <span className="w-7" aria-hidden="true" />
-          <span className="w-20 text-center">Volume</span>
+        {/* Center mute+slider group; align label over the slider */}
+        <div className="grid grid-cols-[1.75rem_5rem] justify-center items-center gap-x-2">
+          <span className="opacity-0">\u00a0</span>
+          <span className="text-center">Volume</span>
         </div>
 
         <div className="text-right">Actions</div>
