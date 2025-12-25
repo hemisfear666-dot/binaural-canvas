@@ -8,7 +8,7 @@ interface TriangleGeneratorProps {
   disabled?: boolean;
 }
 
-const UI = { width: 280, height: 245, puckRadius: 11, safetyBuffer: 4 };
+const UI = { width: 220, height: 190, puckRadius: 10, safetyBuffer: 4 };
 const AUDIO_CONFIG = { minCarrier: 50, maxCarrier: 900, minPulse: 0.5, maxPulse: 40 };
 
 export function TriangleGenerator({
@@ -179,8 +179,8 @@ export function TriangleGenerator({
           {/* Triangle Area */}
           <div
             ref={containerRef}
-            className="relative mx-auto select-none"
-            style={{ width: UI.width, height: UI.height }}
+            className="relative mx-auto select-none max-w-full"
+            style={{ width: UI.width, height: UI.height, maxWidth: '100%' }}
           >
             {/* Triangle Background */}
             <div
