@@ -3,17 +3,20 @@ import { Section } from '@/types/binaural';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
+import { Checkbox } from '@/components/ui/checkbox';
 import { GripVertical, Volume2, VolumeX, Play, Trash2 } from 'lucide-react';
 
 interface SectionRowProps {
   section: Section;
   index: number;
   isActive: boolean;
+  isSelected: boolean;
   isDragging: boolean;
   isDragOver: boolean;
   onUpdate: (field: keyof Section, value: string | number | boolean) => void;
   onDelete: () => void;
   onTest: () => void;
+  onToggleSelect: () => void;
   onDragStart: (e: React.DragEvent, index: number) => void;
   onDragOver: (e: React.DragEvent, index: number) => void;
   onDragLeave: () => void;
@@ -25,11 +28,13 @@ export function SectionRow({
   section,
   index,
   isActive,
+  isSelected,
   isDragging,
   isDragOver,
   onUpdate,
   onDelete,
   onTest,
+  onToggleSelect,
   onDragStart,
   onDragOver,
   onDragLeave,
@@ -48,15 +53,26 @@ export function SectionRow({
       onDrop={(e) => onDrop(e, index)}
       onDragEnd={onDragEnd}
       className={`
-        grid grid-cols-[40px_2fr_1fr_1fr_1fr_120px_auto] gap-4 items-center
+        grid grid-cols-[24px_40px_2fr_1fr_1fr_1fr_120px_auto] gap-4 items-center
         p-3 rounded-lg transition-all duration-200 cursor-grab
-        ${isActive ? 'bg-primary/10 border border-primary glow-blue' : 'bg-void-surface border border-transparent hover:border-border'}
-        ${isDragging ? 'opacity-40 border-dashed border-primary' : ''}
-        ${isDragOver ? 'border-2 border-dashed border-primary scale-[1.01]' : ''}
+        ${isSelected ? 'bg-accent/10 border border-accent/50 glow-red' : ''}
+        ${isActive && !isSelected ? 'bg-primary/10 border border-primary glow-blue' : ''}
+        ${!isActive && !isSelected ? 'bg-void-surface border border-transparent hover:border-border' : ''}
+        ${isDragging ? 'opacity-40 border-dashed border-accent' : ''}
+        ${isDragOver ? 'border-2 border-dashed border-accent scale-[1.01]' : ''}
         animate-slide-in
       `}
       style={{ animationDelay: `${index * 50}ms` }}
     >
+      {/* Checkbox */}
+      <div className="flex items-center justify-center">
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={onToggleSelect}
+          className="border-accent/50 data-[state=checked]:bg-accent data-[state=checked]:border-accent"
+        />
+      </div>
+
       {/* Drag Handle & Index */}
       <div className="flex items-center gap-1">
         <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
@@ -67,7 +83,7 @@ export function SectionRow({
       <Input
         value={section.name}
         onChange={(e) => onUpdate('name', e.target.value)}
-        className="h-8 bg-transparent border-0 border-b border-border/50 rounded-none focus:border-primary px-0"
+        className="h-8 bg-transparent border-0 border-b border-border/50 rounded-none focus:border-accent px-0"
         placeholder="Section name"
       />
 
@@ -103,9 +119,9 @@ export function SectionRow({
           value={section.beat}
           onChange={(e) => onUpdate('beat', parseFloat(e.target.value) || 1)}
           min={0.5}
-          max={40}
+          max={100}
           step={0.1}
-          className="h-8 w-16 bg-void border-border text-center font-mono text-primary"
+          className="h-8 w-16 bg-void border-accent/50 text-center font-mono text-accent"
         />
         <span className="text-xs text-muted-foreground">Hz</span>
       </div>

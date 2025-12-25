@@ -53,8 +53,9 @@
     /* Custom gradients */
     --gradient-void: linear-gradient(180deg, hsl(var(--void)) 0%, hsl(220 80% 6%) 100%);
     --gradient-panel: linear-gradient(135deg, hsl(var(--void-surface)) 0%, hsl(220 50% 6%) 100%);
-    --gradient-timeline: linear-gradient(90deg, hsl(var(--primary) / 0.1) 0%, hsl(var(--accent) / 0.1) 100%);
-    --gradient-playhead: linear-gradient(180deg, hsl(var(--primary)) 0%, hsl(var(--primary-glow)) 100%);
+    --gradient-timeline: linear-gradient(90deg, hsl(var(--primary) / 0.1) 0%, hsl(var(--accent) / 0.2) 100%);
+    --gradient-playhead: linear-gradient(180deg, hsl(var(--accent)) 0%, hsl(var(--primary)) 100%);
+    --gradient-header: linear-gradient(90deg, hsl(var(--void)) 0%, hsl(var(--accent) / 0.05) 50%, hsl(var(--void)) 100%);
     
     /* Shadows */
     --shadow-glow-blue: 0 0 30px hsl(var(--primary) / 0.3);
@@ -131,13 +132,13 @@
   /* Timeline track block */
   .track-block {
     @apply relative rounded-md transition-all duration-200;
-    background: linear-gradient(135deg, hsl(var(--primary) / 0.3) 0%, hsl(var(--primary) / 0.1) 100%);
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.3) 0%, hsl(var(--accent) / 0.15) 100%);
     border: 1px solid hsl(var(--primary) / 0.5);
   }
   
   .track-block:hover {
-    border-color: hsl(var(--primary));
-    box-shadow: 0 0 15px hsl(var(--primary) / 0.3);
+    border-color: hsl(var(--accent));
+    box-shadow: 0 0 15px hsl(var(--accent) / 0.3);
   }
 
   .track-block.muted {
@@ -147,15 +148,16 @@
   }
 
   .track-block.active {
-    border-color: hsl(var(--primary-glow));
-    box-shadow: 0 0 25px hsl(var(--primary) / 0.5);
+    border-color: hsl(var(--accent));
+    box-shadow: 0 0 25px hsl(var(--accent) / 0.5);
+    background: linear-gradient(135deg, hsl(var(--accent) / 0.25) 0%, hsl(var(--primary) / 0.15) 100%);
   }
 
   /* Playhead */
   .playhead {
     @apply absolute top-0 bottom-0 w-0.5 z-50 pointer-events-none;
-    background: var(--gradient-playhead);
-    box-shadow: 0 0 10px hsl(var(--primary)), 0 0 20px hsl(var(--primary) / 0.5);
+    background: linear-gradient(180deg, hsl(var(--accent)) 0%, hsl(var(--primary)) 100%);
+    box-shadow: 0 0 10px hsl(var(--accent)), 0 0 20px hsl(var(--accent) / 0.5);
   }
 
   /* Status indicator */

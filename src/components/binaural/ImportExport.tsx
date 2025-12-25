@@ -101,7 +101,7 @@ export function ImportExport({ track, onImport, onTitleChange }: ImportExportPro
       </div>
 
       {/* Import/Export Actions */}
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2">
         <input
           ref={fileInputRef}
           type="file"
@@ -112,18 +112,18 @@ export function ImportExport({ track, onImport, onTitleChange }: ImportExportPro
         <Button
           variant="outline"
           onClick={() => fileInputRef.current?.click()}
-          className="flex-1 border-border hover:border-primary hover:bg-primary/5"
+          className="w-full border-border hover:border-primary hover:bg-primary/5"
         >
-          <Upload className="h-4 w-4 mr-2" />
-          Import JSON
+          <Upload className="h-4 w-4 mr-2 flex-shrink-0" />
+          <span className="truncate">Import</span>
         </Button>
         <Button
           variant="outline"
           onClick={handleExportFile}
-          className="flex-1 border-border hover:border-primary hover:bg-primary/5"
+          className="w-full border-accent/50 text-accent hover:border-accent hover:bg-accent/10"
         >
-          <Download className="h-4 w-4 mr-2" />
-          Export JSON
+          <Download className="h-4 w-4 mr-2 flex-shrink-0" />
+          <span className="truncate">Export</span>
         </Button>
       </div>
 

@@ -1,22 +1,30 @@
 import { useRef, useCallback, useMemo } from 'react';
 import { Section } from '@/types/binaural';
+import { Button } from '@/components/ui/button';
+import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 
 interface TimelineProps {
   sections: Section[];
   currentTime: number;
   currentSectionIndex: number | null;
-  pixelsPerSecond?: number;
+  pixelsPerSecond: number;
   onSeek: (time: number) => void;
   onSectionClick: (index: number) => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onFitToView: () => void;
 }
 
 export function Timeline({
   sections,
   currentTime,
   currentSectionIndex,
-  pixelsPerSecond = 10,
+  pixelsPerSecond,
   onSeek,
   onSectionClick,
+  onZoomIn,
+  onZoomOut,
+  onFitToView,
 }: TimelineProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -67,6 +75,45 @@ export function Timeline({
 
   return (
     <div className="panel rounded-lg overflow-hidden">
+      {/* Zoom controls */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-void-surface">
+        <span className="text-xs uppercase tracking-widest text-muted-foreground font-medium">
+          Timeline
+        </span>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onZoomOut}
+            className="h-7 w-7 text-muted-foreground hover:text-accent hover:bg-accent/10"
+            title="Zoom out (-)"
+          >
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+          <span className="text-xs font-mono text-accent min-w-[3rem] text-center">
+            {pixelsPerSecond.toFixed(1)}x
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onZoomIn}
+            className="h-7 w-7 text-muted-foreground hover:text-accent hover:bg-accent/10"
+            title="Zoom in (+)"
+          >
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onFitToView}
+            className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 ml-2"
+            title="Fit to view"
+          >
+            <Maximize2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
       {/* Time ruler */}
       <div className="h-6 bg-void-surface border-b border-border relative overflow-hidden">
         <div className="absolute inset-0 overflow-x-auto scrollbar-hide" style={{ width: '100%' }}>
