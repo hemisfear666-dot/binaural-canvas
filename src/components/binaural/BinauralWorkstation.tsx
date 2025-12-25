@@ -223,17 +223,25 @@ export function BinauralWorkstation() {
 
   const handleGeneratorCarrierChange = useCallback((carrier: number) => {
     if (activeEditIndex === null) return;
-    const newSections = [...track.sections];
-    newSections[activeEditIndex] = { ...newSections[activeEditIndex], carrier };
-    handleSectionsChange(newSections);
-  }, [activeEditIndex, track.sections, handleSectionsChange]);
+    setTrack((prev) => {
+      const sections = [...prev.sections];
+      const s = sections[activeEditIndex];
+      if (!s) return prev;
+      sections[activeEditIndex] = { ...s, carrier };
+      return { ...prev, sections };
+    });
+  }, [activeEditIndex, setTrack]);
 
   const handleGeneratorPulseChange = useCallback((pulse: number) => {
     if (activeEditIndex === null) return;
-    const newSections = [...track.sections];
-    newSections[activeEditIndex] = { ...newSections[activeEditIndex], beat: pulse };
-    handleSectionsChange(newSections);
-  }, [activeEditIndex, track.sections, handleSectionsChange]);
+    setTrack((prev) => {
+      const sections = [...prev.sections];
+      const s = sections[activeEditIndex];
+      if (!s) return prev;
+      sections[activeEditIndex] = { ...s, beat: pulse };
+      return { ...prev, sections };
+    });
+  }, [activeEditIndex, setTrack]);
 
   // Section edit click handler
   const handleSectionEditClick = useCallback((index: number) => {
