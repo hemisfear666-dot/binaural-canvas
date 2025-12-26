@@ -110,15 +110,15 @@ export function SectionList({
         {/* Match the row layout exactly: input (w-16) + unit; label occupies the input slot */}
         <div className="flex items-center justify-center gap-1">
           <span className="w-16 whitespace-nowrap text-center tracking-normal">Carrier</span>
-          <span className="opacity-0 text-xs">Hz</span>
+          <span className="w-5 shrink-0 opacity-0 text-xs tracking-normal font-normal">Hz</span>
         </div>
         <div className="flex items-center justify-center gap-1">
           <span className="w-16 whitespace-nowrap text-center tracking-normal">Pulse</span>
-          <span className="opacity-0 text-xs">Hz</span>
+          <span className="w-5 shrink-0 opacity-0 text-xs tracking-normal font-normal">Hz</span>
         </div>
         <div className="flex items-center justify-center gap-1">
           <span className="w-16 whitespace-nowrap text-center tracking-normal">Duration</span>
-          <span className="opacity-0 text-xs">sec</span>
+          <span className="w-5 shrink-0 opacity-0 text-xs tracking-normal font-normal">sec</span>
         </div>
 
         {/* Match the row layout exactly: mute button (w-7) + slider (w-20); label occupies the slider slot */}
