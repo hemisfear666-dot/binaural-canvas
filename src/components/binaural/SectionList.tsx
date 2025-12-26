@@ -107,24 +107,24 @@ export function SectionList({
         <div className="text-center">#</div>
         <div>Name</div>
 
-        {/* Shrink-to-fit & center inside the 90px column; label sits over the number box (w-16) */}
-        <div className="grid w-fit justify-self-center justify-items-center grid-cols-[4rem_auto] items-center gap-x-1">
-          <span className="text-center">Carrier</span>
+        {/* Match the row layout exactly: input (w-16) + unit; label occupies the input slot */}
+        <div className="flex items-center justify-center gap-1">
+          <span className="w-16 text-center">Carrier</span>
           <span className="opacity-0 text-xs">Hz</span>
         </div>
-        <div className="grid w-fit justify-self-center justify-items-center grid-cols-[4rem_auto] items-center gap-x-1">
-          <span className="text-center">Pulse</span>
+        <div className="flex items-center justify-center gap-1">
+          <span className="w-16 text-center">Pulse</span>
           <span className="opacity-0 text-xs">Hz</span>
         </div>
-        <div className="grid w-fit justify-self-center justify-items-center grid-cols-[4rem_auto] items-center gap-x-1">
-          <span className="text-center">Duration</span>
+        <div className="flex items-center justify-center gap-1">
+          <span className="w-16 text-center">Duration</span>
           <span className="opacity-0 text-xs">sec</span>
         </div>
 
-        {/* Shrink-to-fit & center inside the 120px column; label sits over the slider (w-20) */}
-        <div className="grid w-fit justify-self-center justify-items-center grid-cols-[1.75rem_5rem] items-center gap-x-2">
-          <span className="opacity-0">\u00a0</span>
-          <span className="text-center">Volume</span>
+        {/* Match the row layout exactly: mute button (w-7) + slider (w-20); label occupies the slider slot */}
+        <div className="flex items-center justify-center gap-2">
+          <span className="h-7 w-7 opacity-0" aria-hidden />
+          <span className="w-20 text-center">Volume</span>
         </div>
 
         <div className="text-right">Actions</div>
