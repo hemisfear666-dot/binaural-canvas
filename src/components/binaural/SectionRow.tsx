@@ -112,7 +112,7 @@ export function SectionRow({
           max={500}
           className="h-8 w-16 bg-void border-border text-center font-mono"
         />
-        <span className="text-xs text-muted-foreground">Hz</span>
+        <span className="w-5 shrink-0 text-xs text-muted-foreground">Hz</span>
       </div>
 
       {/* Pulse (Beat) Frequency */}
@@ -126,7 +126,7 @@ export function SectionRow({
           step={0.1}
           className="h-8 w-16 bg-void border-accent/50 text-center font-mono text-accent"
         />
-        <span className="text-xs text-muted-foreground">Hz</span>
+        <span className="w-5 shrink-0 text-xs text-muted-foreground">Hz</span>
       </div>
 
       {/* Duration (seconds) */}
@@ -138,7 +138,7 @@ export function SectionRow({
           min={1}
           className="h-8 w-16 bg-void border-border text-center font-mono"
         />
-        <span className="text-xs text-muted-foreground">sec</span>
+        <span className="w-5 shrink-0 text-xs text-muted-foreground">sec</span>
       </div>
 
       {/* Volume Slider */}
