@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Section } from '@/types/binaural';
 import { SectionRow } from './SectionRow';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Plus } from 'lucide-react';
 
 interface SectionListProps {
@@ -103,36 +104,71 @@ export function SectionList({
     setDragOverIndex(null);
   };
 
-  return (
-    <div className="space-y-2">
-      {/* Header */}
-      <div className="grid grid-cols-[24px_40px_2fr_90px_90px_90px_120px_auto] gap-4 items-center px-3 py-2 text-xs uppercase tracking-widest text-muted-foreground font-medium">
-        <div />
-        <div className="text-center">#</div>
-        <div>Name</div>
+    return (
+      <div className="space-y-2">
+        {/* Header */}
+        <div className="grid grid-cols-[24px_40px_2fr_90px_90px_90px_120px_auto] gap-4 items-center p-3 text-xs uppercase tracking-widest text-muted-foreground font-medium">
+          <div />
+          <div className="text-center">#</div>
+          <div>Name</div>
 
-        {/* Match the row layout exactly: input (w-16) + unit; label occupies the input slot */}
-        <div className="flex items-center justify-center gap-1">
-          <span className="w-16 whitespace-nowrap text-center tracking-normal">Carrier</span>
-          <span className="w-5 shrink-0 opacity-0 text-xs tracking-normal font-normal">Hz</span>
-        </div>
-        <div className="flex items-center justify-center gap-1">
-          <span className="w-16 whitespace-nowrap text-center tracking-normal">Pulse</span>
-          <span className="w-5 shrink-0 opacity-0 text-xs tracking-normal font-normal">Hz</span>
-        </div>
-        <div className="flex items-center justify-center gap-1">
-          <span className="w-16 whitespace-nowrap text-center tracking-normal">Duration</span>
-          <span className="w-5 shrink-0 opacity-0 text-xs tracking-normal font-normal">sec</span>
-        </div>
+          {/* Mirror the exact input geometry to prevent any drift */}
+          <div className="relative">
+            <div className="flex items-center justify-center gap-1 opacity-0 pointer-events-none" aria-hidden>
+              <Input
+                value=""
+                readOnly
+                tabIndex={-1}
+                className="h-8 w-16 bg-void border-border text-center font-mono"
+              />
+              <span className="w-5 shrink-0 text-xs text-muted-foreground">Hz</span>
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center gap-1">
+              <span className="h-8 w-16 flex items-center justify-center whitespace-nowrap text-center tracking-normal">Carrier</span>
+              <span className="w-5 shrink-0 opacity-0 text-xs tracking-normal font-normal">Hz</span>
+            </div>
+          </div>
 
-        {/* Match the row layout exactly: mute button (w-7) + slider (w-20); label occupies the slider slot */}
-        <div className="flex items-center justify-center gap-2">
-          <span className="h-7 w-7 opacity-0" aria-hidden />
-          <span className="w-20 whitespace-nowrap text-center tracking-normal">Volume</span>
-        </div>
+          <div className="relative">
+            <div className="flex items-center justify-center gap-1 opacity-0 pointer-events-none" aria-hidden>
+              <Input
+                value=""
+                readOnly
+                tabIndex={-1}
+                className="h-8 w-16 bg-void border-accent/50 text-center font-mono text-accent"
+              />
+              <span className="w-5 shrink-0 text-xs text-muted-foreground">Hz</span>
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center gap-1">
+              <span className="h-8 w-16 flex items-center justify-center whitespace-nowrap text-center tracking-normal">Pulse</span>
+              <span className="w-5 shrink-0 opacity-0 text-xs tracking-normal font-normal">Hz</span>
+            </div>
+          </div>
 
-        <div className="text-right">Actions</div>
-      </div>
+          <div className="relative">
+            <div className="flex items-center justify-center gap-1 opacity-0 pointer-events-none" aria-hidden>
+              <Input
+                value=""
+                readOnly
+                tabIndex={-1}
+                className="h-8 w-16 bg-void border-border text-center font-mono"
+              />
+              <span className="w-5 shrink-0 text-xs text-muted-foreground">sec</span>
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center gap-1">
+              <span className="h-8 w-16 flex items-center justify-center whitespace-nowrap text-center tracking-normal">Duration</span>
+              <span className="w-5 shrink-0 opacity-0 text-xs tracking-normal font-normal">sec</span>
+            </div>
+          </div>
+
+          {/* Match the row layout exactly: mute button (w-7) + slider (w-20) */}
+          <div className="grid grid-cols-[1.75rem_5rem] items-center justify-center gap-2">
+            <span className="h-7 w-7 opacity-0" aria-hidden />
+            <span className="w-20 whitespace-nowrap text-center tracking-normal">Volume</span>
+          </div>
+
+          <div className="text-right">Actions</div>
+        </div>
 
       {/* Rows */}
       <div className="space-y-2">
