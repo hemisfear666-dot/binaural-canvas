@@ -46,26 +46,13 @@ export function SectionRow({
   onDragEnd,
 }: SectionRowProps) {
   const rowRef = useRef<HTMLDivElement>(null);
-  const dragHandleRef = useRef<HTMLDivElement>(null);
-
-  const handleDragStartInternal = (e: React.DragEvent) => {
-    // Only allow drag from the grip handle
-    if (dragHandleRef.current && !dragHandleRef.current.contains(e.target as Node)) {
-      e.preventDefault();
-      return;
-    }
-    onDragStart(e, index);
-  };
 
   return (
     <div
       ref={rowRef}
-      draggable
-      onDragStart={handleDragStartInternal}
       onDragOver={(e) => onDragOver(e, index)}
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, index)}
-      onDragEnd={onDragEnd}
       className={`
         grid grid-cols-[24px_40px_2fr_90px_90px_90px_120px_auto] gap-4 items-center
         p-3 rounded-lg transition-all duration-200
@@ -89,7 +76,14 @@ export function SectionRow({
       </div>
 
       {/* Drag Handle & Index */}
-      <div ref={dragHandleRef} className="flex items-center gap-1 cursor-grab">
+      <div
+        className="flex items-center gap-1 cursor-grab"
+        draggable
+        onDragStart={(e) => onDragStart(e, index)}
+        onDragEnd={onDragEnd}
+        title="Drag to reorder"
+        aria-label="Drag section to reorder"
+      >
         <GripVertical className="h-4 w-4 text-muted-foreground" />
         <span className="text-xs font-mono text-muted-foreground">{index + 1}</span>
       </div>

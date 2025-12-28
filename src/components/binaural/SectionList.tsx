@@ -87,7 +87,11 @@ export function SectionList({
 
     const updated = [...sections];
     const [removed] = updated.splice(dragIndex, 1);
-    updated.splice(targetIndex, 0, removed);
+
+    // If we remove an item above the target, the target index shifts down by 1.
+    const insertIndex = dragIndex < targetIndex ? targetIndex - 1 : targetIndex;
+    updated.splice(insertIndex, 0, removed);
+
     onSectionsChange(updated);
 
     setDragIndex(null);
