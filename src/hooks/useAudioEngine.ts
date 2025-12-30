@@ -5,6 +5,7 @@ interface AudioEngineState {
   playbackState: PlaybackState;
   currentTime: number;
   currentSectionIndex: number | null;
+  testingIndex: number | null;
 }
 
 export function useAudioEngine(
@@ -15,14 +16,19 @@ export function useAudioEngine(
   const audioCtxRef = useRef<AudioContext | null>(null);
   const masterGainRef = useRef<GainNode | null>(null);
   const activeNodesRef = useRef<AudioNode[]>([]);
+  const testNodesRef = useRef<AudioNode[]>([]);
   const animationFrameRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const playbackStartRef = useRef<number>(0);
+  const testTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const wasPlayingBeforeTestRef = useRef<boolean>(false);
+  const pausedTimeRef = useRef<number>(0);
   
   const [state, setState] = useState<AudioEngineState>({
     playbackState: 'stopped',
     currentTime: 0,
     currentSectionIndex: null,
+    testingIndex: null,
   });
 
   // Initialize audio context
@@ -48,8 +54,8 @@ export function useAudioEngine(
   }, [masterVolume]);
 
   // Clean up audio nodes
-  const cleanupNodes = useCallback(() => {
-    activeNodesRef.current.forEach((node) => {
+  const cleanupNodes = useCallback((nodes: AudioNode[]) => {
+    nodes.forEach((node) => {
       try {
         if (node instanceof OscillatorNode) {
           node.stop();
@@ -59,12 +65,25 @@ export function useAudioEngine(
         // Node might already be stopped
       }
     });
-    activeNodesRef.current = [];
   }, []);
+
+  const cleanupMainNodes = useCallback(() => {
+    cleanupNodes(activeNodesRef.current);
+    activeNodesRef.current = [];
+  }, [cleanupNodes]);
+
+  const cleanupTestNodes = useCallback(() => {
+    cleanupNodes(testNodesRef.current);
+    testNodesRef.current = [];
+    if (testTimeoutRef.current) {
+      clearTimeout(testTimeoutRef.current);
+      testTimeoutRef.current = null;
+    }
+  }, [cleanupNodes]);
 
   // Play a single tone
   const playTone = useCallback(
-    (carrier: number, beat: number, duration: number, volume: number, startOffset: number = 0) => {
+    (carrier: number, beat: number, duration: number, volume: number, startOffset: number = 0, isTest: boolean = false) => {
       if (!audioCtxRef.current || !masterGainRef.current) return;
 
       const ctx = audioCtxRef.current;
@@ -74,6 +93,8 @@ export function useAudioEngine(
       const sectionGain = ctx.createGain();
       sectionGain.gain.setValueAtTime(volume, now);
       sectionGain.connect(masterGainRef.current);
+
+      const nodesToTrack = isTest ? testNodesRef.current : activeNodesRef.current;
 
       if (isIsochronic) {
         // ISOCHRONIC: Carrier + Amplitude Modulation
@@ -101,7 +122,7 @@ export function useAudioEngine(
         osc.stop(now + duration);
         lfo.stop(now + duration);
 
-        activeNodesRef.current.push(osc, lfo, amp, lfoGain, sectionGain);
+        nodesToTrack.push(osc, lfo, amp, lfoGain, sectionGain);
       } else {
         // BINAURAL: Dual Sine
         const oscL = ctx.createOscillator();
@@ -125,7 +146,7 @@ export function useAudioEngine(
         oscL.stop(now + duration);
         oscR.stop(now + duration);
 
-        activeNodesRef.current.push(oscL, oscR, panL, panR, sectionGain);
+        nodesToTrack.push(oscL, oscR, panL, panR, sectionGain);
       }
     },
     [isIsochronic]
@@ -160,12 +181,13 @@ export function useAudioEngine(
 
     if (elapsed >= totalDuration) {
       // Playback finished
-      setState({
+      setState((prev) => ({
+        ...prev,
         playbackState: 'stopped',
         currentTime: 0,
         currentSectionIndex: null,
-      });
-      cleanupNodes();
+      }));
+      cleanupMainNodes();
       return;
     }
 
@@ -177,7 +199,7 @@ export function useAudioEngine(
     }));
 
     animationFrameRef.current = requestAnimationFrame(updateTime);
-  }, [state.playbackState, getTotalDuration, getCurrentSection, cleanupNodes]);
+  }, [state.playbackState, getTotalDuration, getCurrentSection, cleanupMainNodes]);
 
   useEffect(() => {
     if (state.playbackState === 'playing') {
@@ -194,7 +216,7 @@ export function useAudioEngine(
   const play = useCallback(
     (fromTime: number = 0) => {
       initAudio();
-      cleanupNodes();
+      cleanupMainNodes();
 
       if (!audioCtxRef.current) return;
 
@@ -213,24 +235,27 @@ export function useAudioEngine(
             section.beat,
             sectionDuration,
             section.volume,
-            startOffset
+            startOffset,
+            false
           );
         }
         timeAccumulator += section.duration;
       });
 
-      setState({
+      setState((prev) => ({
+        ...prev,
         playbackState: 'playing',
         currentTime: fromTime,
         currentSectionIndex: getCurrentSection(fromTime),
-      });
+      }));
     },
-    [sections, initAudio, cleanupNodes, playTone, getCurrentSection]
+    [sections, initAudio, cleanupMainNodes, playTone, getCurrentSection]
   );
 
   // Stop playback
   const stop = useCallback(() => {
-    cleanupNodes();
+    cleanupMainNodes();
+    cleanupTestNodes();
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
@@ -238,12 +263,13 @@ export function useAudioEngine(
       playbackState: 'stopped',
       currentTime: 0,
       currentSectionIndex: null,
+      testingIndex: null,
     });
-  }, [cleanupNodes]);
+  }, [cleanupMainNodes, cleanupTestNodes]);
 
   // Pause playback
   const pause = useCallback(() => {
-    cleanupNodes();
+    cleanupMainNodes();
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
@@ -251,35 +277,65 @@ export function useAudioEngine(
       ...prev,
       playbackState: 'paused',
     }));
-  }, [cleanupNodes]);
+  }, [cleanupMainNodes]);
+
+  // Resume playback after test
+  const resumeAfterTest = useCallback(() => {
+    if (wasPlayingBeforeTestRef.current && pausedTimeRef.current > 0) {
+      play(pausedTimeRef.current);
+    }
+    wasPlayingBeforeTestRef.current = false;
+    pausedTimeRef.current = 0;
+  }, [play]);
 
   // Test a single section
   const testSection = useCallback(
     (sectionIndex: number, duration: number = 5) => {
       initAudio();
-      cleanupNodes();
+      
+      // Remember if we were playing and pause
+      if (state.playbackState === 'playing') {
+        wasPlayingBeforeTestRef.current = true;
+        pausedTimeRef.current = state.currentTime;
+        cleanupMainNodes();
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+        }
+      }
+      
+      cleanupTestNodes();
 
       const section = sections[sectionIndex];
       if (!section) return;
 
-      playTone(section.carrier, section.beat, duration, section.volume);
+      playTone(section.carrier, section.beat, duration, section.volume, 0, true);
 
-      setState({
-        playbackState: 'playing',
-        currentTime: 0,
-        currentSectionIndex: sectionIndex,
-      });
+      setState((prev) => ({
+        ...prev,
+        testingIndex: sectionIndex,
+      }));
 
-      setTimeout(() => {
-        setState({
-          playbackState: 'stopped',
-          currentTime: 0,
-          currentSectionIndex: null,
-        });
+      testTimeoutRef.current = setTimeout(() => {
+        cleanupTestNodes();
+        setState((prev) => ({
+          ...prev,
+          testingIndex: null,
+        }));
+        resumeAfterTest();
       }, duration * 1000);
     },
-    [sections, initAudio, cleanupNodes, playTone]
+    [sections, initAudio, cleanupMainNodes, cleanupTestNodes, playTone, state.playbackState, state.currentTime, resumeAfterTest]
   );
+
+  // Stop test manually
+  const stopTest = useCallback(() => {
+    cleanupTestNodes();
+    setState((prev) => ({
+      ...prev,
+      testingIndex: null,
+    }));
+    resumeAfterTest();
+  }, [cleanupTestNodes, resumeAfterTest]);
 
   // Seek to time
   const seekTo = useCallback(
@@ -300,7 +356,8 @@ export function useAudioEngine(
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      cleanupNodes();
+      cleanupMainNodes();
+      cleanupTestNodes();
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -308,7 +365,7 @@ export function useAudioEngine(
         audioCtxRef.current.close();
       }
     };
-  }, [cleanupNodes]);
+  }, [cleanupMainNodes, cleanupTestNodes]);
 
   return {
     ...state,
@@ -316,6 +373,7 @@ export function useAudioEngine(
     pause,
     stop,
     testSection,
+    stopTest,
     seekTo,
     getTotalDuration,
   };

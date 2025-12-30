@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import { Section } from '@/types/binaural';
 import { SectionRow } from './SectionRow';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Plus } from 'lucide-react';
 
 interface SectionListProps {
@@ -10,8 +9,10 @@ interface SectionListProps {
   currentSectionIndex: number | null;
   selectedIndices: Set<number>;
   activeEditIndex: number | null;
+  testingIndex: number | null;
   onSectionsChange: (sections: Section[]) => void;
   onTestSection: (index: number) => void;
+  onStopTest: () => void;
   onToggleSelect: (index: number) => void;
   onEditClick: (index: number) => void;
 }
@@ -21,8 +22,10 @@ export function SectionList({
   currentSectionIndex,
   selectedIndices,
   activeEditIndex,
+  testingIndex,
   onSectionsChange,
   onTestSection,
+  onStopTest,
   onToggleSelect,
   onEditClick,
 }: SectionListProps) {
@@ -104,71 +107,22 @@ export function SectionList({
     setDragOverIndex(null);
   };
 
-    return (
-      <div className="space-y-2">
-        {/* Header */}
-        <div className="grid grid-cols-[24px_40px_2fr_90px_90px_90px_120px_auto] gap-4 items-center p-3 text-xs uppercase tracking-widest text-muted-foreground font-medium">
-          <div />
-          <div className="text-center">#</div>
-          <div>Name</div>
+  return (
+    <div className="space-y-2">
+      {/* Header */}
+      <div className="grid grid-cols-[24px_40px_2fr_90px_90px_90px_120px_auto] gap-4 items-center p-3 text-xs uppercase tracking-widest text-muted-foreground font-medium">
+        <div />
+        <div className="text-center">#</div>
+        <div>Name</div>
 
-          {/* Mirror the exact input geometry to prevent any drift */}
-          <div className="relative">
-            <div className="flex items-center justify-center gap-1 opacity-0 pointer-events-none" aria-hidden>
-              <Input
-                value=""
-                readOnly
-                tabIndex={-1}
-                className="h-8 w-16 bg-void border-border text-center font-mono"
-              />
-              <span className="w-5 shrink-0 text-xs text-muted-foreground">Hz</span>
-            </div>
-            <div className="absolute inset-0 flex items-center justify-center gap-1">
-              <span className="h-8 w-16 flex items-center justify-center whitespace-nowrap text-center tracking-normal">Carrier</span>
-              <span className="w-5 shrink-0 opacity-0 text-xs tracking-normal font-normal">Hz</span>
-            </div>
-          </div>
+        {/* Using arbitrary values -[4.5rem] to simulate ml-18, and -ml-12 for Volume */}
+        <div className="text-left -ml-[5.2rem]">Carrier</div>
+        <div className="text-left -ml-[5.2rem]">Pulse</div>
+        <div className="text-left -ml-[5.2rem]">Duration</div>
+        <div className="text-left -ml-[3.2rem]">Volume</div>
 
-          <div className="relative">
-            <div className="flex items-center justify-center gap-1 opacity-0 pointer-events-none" aria-hidden>
-              <Input
-                value=""
-                readOnly
-                tabIndex={-1}
-                className="h-8 w-16 bg-void border-accent/50 text-center font-mono text-accent"
-              />
-              <span className="w-5 shrink-0 text-xs text-muted-foreground">Hz</span>
-            </div>
-            <div className="absolute inset-0 flex items-center justify-center gap-1">
-              <span className="h-8 w-16 flex items-center justify-center whitespace-nowrap text-center tracking-normal">Pulse</span>
-              <span className="w-5 shrink-0 opacity-0 text-xs tracking-normal font-normal">Hz</span>
-            </div>
-          </div>
-
-          <div className="relative">
-            <div className="flex items-center justify-center gap-1 opacity-0 pointer-events-none" aria-hidden>
-              <Input
-                value=""
-                readOnly
-                tabIndex={-1}
-                className="h-8 w-16 bg-void border-border text-center font-mono"
-              />
-              <span className="w-5 shrink-0 text-xs text-muted-foreground">sec</span>
-            </div>
-            <div className="absolute inset-0 flex items-center justify-center gap-1">
-              <span className="h-8 w-16 flex items-center justify-center whitespace-nowrap text-center tracking-normal">Duration</span>
-              <span className="w-5 shrink-0 opacity-0 text-xs tracking-normal font-normal">sec</span>
-            </div>
-          </div>
-
-          {/* Match the row layout exactly: mute button (w-7) + slider (w-20) */}
-          <div className="grid grid-cols-[1.75rem_5rem] items-center justify-center gap-2">
-            <span className="h-7 w-7 opacity-0" aria-hidden />
-            <span className="w-20 whitespace-nowrap text-center tracking-normal">Volume</span>
-          </div>
-
-          <div className="text-right">Actions</div>
-        </div>
+        <div className="text-right">Actions</div>
+      </div>
 
       {/* Rows */}
       <div className="space-y-2">
@@ -180,11 +134,13 @@ export function SectionList({
             isActive={currentSectionIndex === index}
             isSelected={selectedIndices.has(index)}
             isEditing={activeEditIndex === index}
+            isTesting={testingIndex === index}
             isDragging={dragIndex === index}
             isDragOver={dragOverIndex === index}
             onUpdate={(field, value) => handleUpdate(index, field, value)}
             onDelete={() => handleDelete(index)}
             onTest={() => onTestSection(index)}
+            onStopTest={onStopTest}
             onToggleSelect={() => onToggleSelect(index)}
             onEditClick={() => onEditClick(index)}
             onDragStart={handleDragStart}

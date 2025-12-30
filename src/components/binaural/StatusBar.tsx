@@ -8,6 +8,8 @@ interface StatusBarProps {
   isIsochronic: boolean;
 }
 
+const APP_VERSION = '0.6.1';
+
 export function StatusBar({ status, playbackState, currentTime, isIsochronic }: StatusBarProps) {
   return (
     <div className="fixed bottom-0 left-0 right-0 h-10 bg-void-lighter/95 backdrop-blur border-t border-border flex items-center justify-between px-6 z-50">
@@ -24,6 +26,9 @@ export function StatusBar({ status, playbackState, currentTime, isIsochronic }: 
         </span>
         <span className="font-mono text-sm text-foreground">
           {formatTime(currentTime)}
+        </span>
+        <span className="font-mono text-xs text-accent font-medium">
+          v{APP_VERSION}
         </span>
       </div>
     </div>

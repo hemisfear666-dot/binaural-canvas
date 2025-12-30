@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Section, Track } from '@/types/binaural';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { useHistory } from '@/hooks/useHistory';
@@ -17,6 +17,8 @@ import { Undo2, Redo2, Copy, Trash2, CheckSquare, Square } from 'lucide-react';
 import { toast } from 'sonner';
 import logo from '@/assets/logo.png';
 
+const STORAGE_KEY = 'binaural-workstation-track';
+
 const defaultSections: Section[] = [
   { id: 'intro', name: 'Intro - Relaxation', duration: 60, carrier: 100, beat: 7.83, volume: 0.7, muted: false },
   { id: 'alpha', name: 'Alpha Waves', duration: 120, carrier: 200, beat: 10, volume: 0.8, muted: false },
@@ -33,6 +35,23 @@ const defaultTrack: Track = {
   bpm: 120,
 };
 
+// Load saved track from localStorage
+const loadSavedTrack = (): Track => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Validate the parsed data has the required structure
+      if (parsed && parsed.sections && Array.isArray(parsed.sections)) {
+        return parsed as Track;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to load saved track:', e);
+  }
+  return defaultTrack;
+};
+
 export function BinauralWorkstation() {
   const {
     state: track,
@@ -42,7 +61,7 @@ export function BinauralWorkstation() {
     reset: resetTrack,
     canUndo,
     canRedo,
-  } = useHistory<Track>(defaultTrack);
+  } = useHistory<Track>(loadSavedTrack());
 
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
   const [activeEditIndex, setActiveEditIndex] = useState<number | null>(0);
@@ -50,14 +69,25 @@ export function BinauralWorkstation() {
   const [pixelsPerSecond, setPixelsPerSecond] = useState(8);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Save track to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(track));
+    } catch (e) {
+      console.warn('Failed to save track:', e);
+    }
+  }, [track]);
+
   const {
     playbackState,
     currentTime,
     currentSectionIndex,
+    testingIndex,
     play,
     pause,
     stop,
     testSection,
+    stopTest,
     seekTo,
     getTotalDuration,
   } = useAudioEngine(track.sections, track.masterVolume, track.isIsochronic);
@@ -66,6 +96,9 @@ export function BinauralWorkstation() {
 
   // Status message
   const statusMessage = useMemo(() => {
+    if (testingIndex !== null) {
+      return `TESTING: ${track.sections[testingIndex]?.name}`;
+    }
     if (playbackState === 'playing' && currentSectionIndex !== null) {
       return `NOW PLAYING: ${track.sections[currentSectionIndex]?.name}`;
     }
@@ -73,7 +106,7 @@ export function BinauralWorkstation() {
       return 'PAUSED';
     }
     return 'SYSTEM READY';
-  }, [playbackState, currentSectionIndex, track.sections]);
+  }, [playbackState, currentSectionIndex, testingIndex, track.sections]);
 
   // Handlers
   const handleSectionsChange = useCallback((sections: Section[]) => {
@@ -417,8 +450,10 @@ export function BinauralWorkstation() {
               currentSectionIndex={currentSectionIndex}
               selectedIndices={selectedIndices}
               activeEditIndex={activeEditIndex}
+              testingIndex={testingIndex}
               onSectionsChange={handleSectionsChange}
               onTestSection={handleTestSection}
+              onStopTest={stopTest}
               onToggleSelect={handleToggleSelect}
               onEditClick={handleSectionEditClick}
             />

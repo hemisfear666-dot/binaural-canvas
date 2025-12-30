@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
-import { GripVertical, Volume2, VolumeX, Play, Trash2, Edit3 } from 'lucide-react';
+import { GripVertical, Volume2, VolumeX, Play, Square, Trash2, Edit3 } from 'lucide-react';
 
 interface SectionRowProps {
   section: Section;
@@ -12,11 +12,13 @@ interface SectionRowProps {
   isActive: boolean;
   isSelected: boolean;
   isEditing: boolean;
+  isTesting: boolean;
   isDragging: boolean;
   isDragOver: boolean;
   onUpdate: (field: keyof Section, value: string | number | boolean) => void;
   onDelete: () => void;
   onTest: () => void;
+  onStopTest: () => void;
   onToggleSelect: () => void;
   onEditClick: () => void;
   onDragStart: (e: React.DragEvent, index: number) => void;
@@ -32,11 +34,13 @@ export function SectionRow({
   isActive,
   isSelected,
   isEditing,
+  isTesting,
   isDragging,
   isDragOver,
   onUpdate,
   onDelete,
   onTest,
+  onStopTest,
   onToggleSelect,
   onEditClick,
   onDragStart,
@@ -166,15 +170,27 @@ export function SectionRow({
         >
           <Edit3 className="h-3 w-3" />
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onTest}
-          className="text-primary hover:text-primary-glow hover:bg-primary/10 text-xs uppercase tracking-wider font-medium"
-        >
-          <Play className="h-3 w-3 mr-1" />
-          Test
-        </Button>
+        {isTesting ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onStopTest}
+            className="text-accent hover:text-accent hover:bg-accent/10 text-xs uppercase tracking-wider font-medium"
+          >
+            <Square className="h-3 w-3 mr-1" />
+            Stop
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onTest}
+            className="text-primary hover:text-primary-glow hover:bg-primary/10 text-xs uppercase tracking-wider font-medium"
+          >
+            <Play className="h-3 w-3 mr-1" />
+            Test
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="icon"
