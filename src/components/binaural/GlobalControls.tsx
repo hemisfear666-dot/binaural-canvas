@@ -17,9 +17,9 @@ export function GlobalControls({
   onModeChange,
 }: GlobalControlsProps) {
   return (
-    <div className="flex items-center justify-between p-4 panel rounded-lg">
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-6 p-3 sm:p-4 panel rounded-lg">
       {/* Master Volume */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4">
         <div className="flex items-center gap-2">
           <Volume2 className="h-4 w-4 text-muted-foreground" />
           <Label className="text-xs uppercase tracking-widest text-muted-foreground font-medium">
@@ -31,7 +31,7 @@ export function GlobalControls({
           onValueChange={([v]) => onVolumeChange(v / 100)}
           max={100}
           step={1}
-          className="w-32"
+          className="w-24 sm:w-32"
         />
         <span className="font-mono text-sm text-primary w-12">
           {Math.round(masterVolume * 100)}%
@@ -39,7 +39,7 @@ export function GlobalControls({
       </div>
 
       {/* Mode Toggle */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4">
         <div className="flex items-center gap-2">
           <Headphones className={`h-4 w-4 transition-colors ${!isIsochronic ? 'text-primary' : 'text-muted-foreground'}`} />
           <span className={`text-xs uppercase tracking-wide transition-colors ${!isIsochronic ? 'text-primary font-medium' : 'text-muted-foreground'}`}>

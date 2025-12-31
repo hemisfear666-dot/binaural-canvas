@@ -282,19 +282,19 @@ export function BinauralWorkstation() {
   }, []);
 
   return (
-    <div className="min-h-screen pb-12" style={{ background: 'var(--gradient-void)' }}>
+    <div className="min-h-screen pb-16 md:pb-12" style={{ background: 'var(--gradient-void)' }}>
       {/* Header */}
-      <header className="p-6 border-b border-accent/20">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <header className="p-3 md:p-6 border-b border-accent/20">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <img src={logo} alt="Binaural Extension Logo" className="h-12 w-auto" />
+            <img src={logo} alt="Binaural Extension Logo" className="h-8 md:h-12 w-auto" />
             <div>
-              <h1 className="text-sm font-light uppercase tracking-[0.3em] text-white">
+              <h1 className="text-xs md:text-sm font-light uppercase tracking-[0.3em] text-white">
                 Binaural Extension
               </h1>
-              <div className="flex items-center gap-2 mt-1">
-                <h2 className="text-2xl font-semibold text-white">Beat Lab</h2>
-                <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 bg-accent/20 text-accent border border-accent/50 rounded">
+              <div className="flex items-center gap-2 mt-0.5 md:mt-1">
+                <h2 className="text-lg md:text-2xl font-semibold text-white">Beat Lab</h2>
+                <span className="text-[8px] md:text-[10px] uppercase tracking-wider px-1.5 md:px-2 py-0.5 bg-accent/20 text-accent border border-accent/50 rounded">
                   Beta
                 </span>
               </div>
@@ -314,10 +314,10 @@ export function BinauralWorkstation() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto p-6 space-y-6" ref={containerRef}>
+      <main className="max-w-7xl mx-auto p-3 md:p-6 space-y-4 md:space-y-6" ref={containerRef}>
         {/* Global Controls + Toolbar */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 md:gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-4">
             <GlobalControls
               masterVolume={track.masterVolume}
               onVolumeChange={handleVolumeChange}
@@ -325,7 +325,7 @@ export function BinauralWorkstation() {
               onModeChange={handleModeChange}
             />
             {/* BPM Control */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 px-4 py-2 sm:py-0">
               <span className="text-xs uppercase tracking-wider text-muted-foreground">BPM</span>
               <Input
                 type="number"
@@ -337,14 +337,14 @@ export function BinauralWorkstation() {
               />
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 md:gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-hide">
             {/* Undo/Redo */}
             <Button
               variant="ghost"
               size="icon"
               onClick={undo}
               disabled={!canUndo}
-              className="text-muted-foreground hover:text-accent hover:bg-accent/10 disabled:opacity-30"
+              className="text-muted-foreground hover:text-accent hover:bg-accent/10 disabled:opacity-30 shrink-0"
               title="Undo (Ctrl+Z)"
             >
               <Undo2 className="h-4 w-4" />
@@ -354,27 +354,28 @@ export function BinauralWorkstation() {
               size="icon"
               onClick={redo}
               disabled={!canRedo}
-              className="text-muted-foreground hover:text-accent hover:bg-accent/10 disabled:opacity-30"
+              className="text-muted-foreground hover:text-accent hover:bg-accent/10 disabled:opacity-30 shrink-0"
               title="Redo (Ctrl+Shift+Z)"
             >
               <Redo2 className="h-4 w-4" />
             </Button>
 
-            <div className="w-px h-6 bg-border mx-2" />
+            <div className="w-px h-6 bg-border mx-1 md:mx-2 shrink-0" />
 
             {/* Selection actions */}
             <Button
               variant="ghost"
               size="sm"
               onClick={selectedIndices.size === track.sections.length ? handleDeselectAll : handleSelectAll}
-              className="text-muted-foreground hover:text-primary"
+              className="text-muted-foreground hover:text-primary shrink-0 text-xs md:text-sm"
             >
               {selectedIndices.size === track.sections.length ? (
                 <Square className="h-4 w-4 mr-1" />
               ) : (
                 <CheckSquare className="h-4 w-4 mr-1" />
               )}
-              {selectedIndices.size > 0 ? `${selectedIndices.size} selected` : 'Select All'}
+              <span className="hidden sm:inline">{selectedIndices.size > 0 ? `${selectedIndices.size} selected` : 'Select All'}</span>
+              <span className="sm:hidden">{selectedIndices.size > 0 ? selectedIndices.size : 'All'}</span>
             </Button>
 
             {selectedIndices.size > 0 && (
@@ -383,24 +384,24 @@ export function BinauralWorkstation() {
                   variant="ghost"
                   size="sm"
                   onClick={handleDuplicateSelected}
-                  className="text-primary hover:text-primary hover:bg-primary/10"
+                  className="text-primary hover:text-primary hover:bg-primary/10 shrink-0"
                 >
-                  <Copy className="h-4 w-4 mr-1" />
-                  Duplicate
+                  <Copy className="h-4 w-4 md:mr-1" />
+                  <span className="hidden md:inline">Duplicate</span>
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleDeleteSelected}
-                  className="text-accent hover:text-accent hover:bg-accent/10"
+                  className="text-accent hover:text-accent hover:bg-accent/10 shrink-0"
                 >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Delete
+                  <Trash2 className="h-4 w-4 md:mr-1" />
+                  <span className="hidden md:inline">Delete</span>
                 </Button>
               </>
             )}
 
-            <div className="w-px h-6 bg-border mx-2" />
+            <div className="w-px h-6 bg-border mx-1 md:mx-2 shrink-0" />
 
             <PresetLibrary onAddPreset={handleAddPreset} />
 
@@ -440,9 +441,20 @@ export function BinauralWorkstation() {
         />
 
         {/* Section Editor */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-3 panel rounded-lg p-4">
-            <h3 className="text-xs uppercase tracking-widest text-accent font-medium mb-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
+          {/* Mobile: Generator first for quick access */}
+          <div className="lg:hidden space-y-4">
+            <TriangleGenerator
+              carrier={activeSection?.carrier ?? 200}
+              pulse={activeSection?.beat ?? 10}
+              onCarrierChange={handleGeneratorCarrierChange}
+              onPulseChange={handleGeneratorPulseChange}
+              disabled={activeEditIndex === null}
+            />
+          </div>
+
+          <div className="lg:col-span-3 panel rounded-lg p-3 md:p-4">
+            <h3 className="text-xs uppercase tracking-widest text-accent font-medium mb-3 md:mb-4">
               Sequence Editor
             </h3>
             <SectionList
@@ -459,7 +471,8 @@ export function BinauralWorkstation() {
             />
           </div>
 
-          <div className="lg:col-span-1 space-y-4">
+          {/* Desktop: Generator on side */}
+          <div className="hidden lg:block lg:col-span-1 space-y-4">
             <TriangleGenerator
               carrier={activeSection?.carrier ?? 200}
               pulse={activeSection?.beat ?? 10}
@@ -467,6 +480,15 @@ export function BinauralWorkstation() {
               onPulseChange={handleGeneratorPulseChange}
               disabled={activeEditIndex === null}
             />
+            <ImportExport
+              track={track}
+              onImport={handleImport}
+              onTitleChange={handleTitleChange}
+            />
+          </div>
+
+          {/* Mobile: Import/Export at bottom */}
+          <div className="lg:hidden">
             <ImportExport
               track={track}
               onImport={handleImport}
