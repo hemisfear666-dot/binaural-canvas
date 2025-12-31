@@ -137,7 +137,7 @@ export function Timeline({
       {/* Timeline track */}
       <div
         ref={containerRef}
-        className="h-24 relative overflow-x-auto cursor-crosshair"
+        className="h-16 sm:h-24 relative overflow-x-auto cursor-crosshair"
         onClick={handleClick}
         style={{ background: 'linear-gradient(180deg, hsl(var(--void-surface)) 0%, hsl(var(--void)) 100%)' }}
       >

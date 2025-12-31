@@ -51,155 +51,299 @@ export function SectionRow({
 }: SectionRowProps) {
   const rowRef = useRef<HTMLDivElement>(null);
 
+  const baseClasses = `
+    transition-all duration-200
+    ${isEditing ? 'bg-primary/20 border-2 border-primary glow-blue ring-2 ring-primary/30' : ''}
+    ${isSelected && !isEditing ? 'bg-accent/10 border border-accent/50 glow-red' : ''}
+    ${isActive && !isSelected && !isEditing ? 'bg-primary/10 border border-primary glow-blue' : ''}
+    ${!isActive && !isSelected && !isEditing ? 'bg-void-surface border border-transparent hover:border-border' : ''}
+    ${isDragging ? 'opacity-40 border-dashed border-accent' : ''}
+    ${isDragOver ? 'border-2 border-dashed border-accent scale-[1.01]' : ''}
+    animate-slide-in
+  `;
+
   return (
-    <div
-      ref={rowRef}
-      onDragOver={(e) => onDragOver(e, index)}
-      onDragLeave={onDragLeave}
-      onDrop={(e) => onDrop(e, index)}
-      className={`
-        grid grid-cols-[24px_40px_2fr_90px_90px_90px_120px_auto] gap-4 items-center
-        p-3 rounded-lg transition-all duration-200
-        ${isEditing ? 'bg-primary/20 border-2 border-primary glow-blue ring-2 ring-primary/30' : ''}
-        ${isSelected && !isEditing ? 'bg-accent/10 border border-accent/50 glow-red' : ''}
-        ${isActive && !isSelected && !isEditing ? 'bg-primary/10 border border-primary glow-blue' : ''}
-        ${!isActive && !isSelected && !isEditing ? 'bg-void-surface border border-transparent hover:border-border' : ''}
-        ${isDragging ? 'opacity-40 border-dashed border-accent' : ''}
-        ${isDragOver ? 'border-2 border-dashed border-accent scale-[1.01]' : ''}
-        animate-slide-in
-      `}
-      style={{ animationDelay: `${index * 50}ms` }}
-    >
-      {/* Checkbox */}
-      <div className="flex items-center justify-center">
-        <Checkbox
-          checked={isSelected}
-          onCheckedChange={onToggleSelect}
-          className="border-accent/50 data-[state=checked]:bg-accent data-[state=checked]:border-accent"
-        />
-      </div>
-
-      {/* Drag Handle & Index */}
+    <>
+      {/* Desktop Layout */}
       <div
-        className="flex items-center gap-1 cursor-grab"
-        draggable
-        onDragStart={(e) => onDragStart(e, index)}
-        onDragEnd={onDragEnd}
-        title="Drag to reorder"
-        aria-label="Drag section to reorder"
+        ref={rowRef}
+        onDragOver={(e) => onDragOver(e, index)}
+        onDragLeave={onDragLeave}
+        onDrop={(e) => onDrop(e, index)}
+        className={`
+          hidden md:grid grid-cols-[24px_40px_2fr_90px_90px_90px_120px_auto] gap-4 items-center
+          p-3 rounded-lg ${baseClasses}
+        `}
+        style={{ animationDelay: `${index * 50}ms` }}
       >
-        <GripVertical className="h-4 w-4 text-muted-foreground" />
-        <span className="text-xs font-mono text-muted-foreground">{index + 1}</span>
-      </div>
+        {/* Checkbox */}
+        <div className="flex items-center justify-center">
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={onToggleSelect}
+            className="border-accent/50 data-[state=checked]:bg-accent data-[state=checked]:border-accent"
+          />
+        </div>
 
-      {/* Name */}
-      <Input
-        value={section.name}
-        onChange={(e) => onUpdate('name', e.target.value)}
-        className="h-8 bg-transparent border-0 border-b border-border/50 rounded-none focus:border-accent px-0"
-        placeholder="Section name"
-      />
-
-      {/* Carrier Frequency */}
-      <div className="flex items-center justify-center gap-1">
-        <Input
-          type="number"
-          value={section.carrier}
-          onChange={(e) => onUpdate('carrier', parseFloat(e.target.value) || 100)}
-          min={20}
-          max={500}
-          className="h-8 w-16 bg-void border-border text-center font-mono"
-        />
-        <span className="w-5 shrink-0 text-xs text-muted-foreground">Hz</span>
-      </div>
-
-      {/* Pulse (Beat) Frequency */}
-      <div className="flex items-center justify-center gap-1">
-        <Input
-          type="number"
-          value={section.beat}
-          onChange={(e) => onUpdate('beat', parseFloat(e.target.value) || 1)}
-          min={0.5}
-          max={100}
-          step={0.1}
-          className="h-8 w-16 bg-void border-accent/50 text-center font-mono text-accent"
-        />
-        <span className="w-5 shrink-0 text-xs text-muted-foreground">Hz</span>
-      </div>
-
-      {/* Duration (seconds) */}
-      <div className="flex items-center justify-center gap-1">
-        <Input
-          type="number"
-          value={section.duration}
-          onChange={(e) => onUpdate('duration', parseFloat(e.target.value) || 0)}
-          min={1}
-          className="h-8 w-16 bg-void border-border text-center font-mono"
-        />
-        <span className="w-5 shrink-0 text-xs text-muted-foreground">sec</span>
-      </div>
-
-      {/* Volume Slider */}
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => onUpdate('muted', !section.muted)}
-          className={`h-7 w-7 ${section.muted ? 'text-accent' : 'text-muted-foreground hover:text-foreground'}`}
+        {/* Drag Handle & Index */}
+        <div
+          className="flex items-center gap-1 cursor-grab"
+          draggable
+          onDragStart={(e) => onDragStart(e, index)}
+          onDragEnd={onDragEnd}
+          title="Drag to reorder"
+          aria-label="Drag section to reorder"
         >
-          {section.muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-        </Button>
-        <Slider
-          value={[section.volume * 100]}
-          onValueChange={([v]) => onUpdate('volume', v / 100)}
-          max={100}
-          step={1}
-          disabled={section.muted}
-          className={`w-20 ${section.muted ? 'opacity-50' : ''}`}
-        />
-      </div>
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+          <span className="text-xs font-mono text-muted-foreground">{index + 1}</span>
+        </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onEditClick}
-          className={`h-7 w-7 ${isEditing ? 'text-primary bg-primary/20' : 'text-muted-foreground hover:text-primary hover:bg-primary/10'}`}
-          title="Edit with generator"
-        >
-          <Edit3 className="h-3 w-3" />
-        </Button>
-        {isTesting ? (
+        {/* Name */}
+        <Input
+          value={section.name}
+          onChange={(e) => onUpdate('name', e.target.value)}
+          className="h-8 bg-transparent border-0 border-b border-border/50 rounded-none focus:border-accent px-0"
+          placeholder="Section name"
+        />
+
+        {/* Carrier Frequency */}
+        <div className="flex items-center justify-center gap-1">
+          <Input
+            type="number"
+            value={section.carrier}
+            onChange={(e) => onUpdate('carrier', parseFloat(e.target.value) || 100)}
+            min={20}
+            max={500}
+            className="h-8 w-16 bg-void border-border text-center font-mono"
+          />
+          <span className="w-5 shrink-0 text-xs text-muted-foreground">Hz</span>
+        </div>
+
+        {/* Pulse (Beat) Frequency */}
+        <div className="flex items-center justify-center gap-1">
+          <Input
+            type="number"
+            value={section.beat}
+            onChange={(e) => onUpdate('beat', parseFloat(e.target.value) || 1)}
+            min={0.5}
+            max={100}
+            step={0.1}
+            className="h-8 w-16 bg-void border-accent/50 text-center font-mono text-accent"
+          />
+          <span className="w-5 shrink-0 text-xs text-muted-foreground">Hz</span>
+        </div>
+
+        {/* Duration (seconds) */}
+        <div className="flex items-center justify-center gap-1">
+          <Input
+            type="number"
+            value={section.duration}
+            onChange={(e) => onUpdate('duration', parseFloat(e.target.value) || 0)}
+            min={1}
+            className="h-8 w-16 bg-void border-border text-center font-mono"
+          />
+          <span className="w-5 shrink-0 text-xs text-muted-foreground">sec</span>
+        </div>
+
+        {/* Volume Slider */}
+        <div className="flex items-center gap-2">
           <Button
             variant="ghost"
-            size="sm"
-            onClick={onStopTest}
-            className="text-accent hover:text-accent hover:bg-accent/10 text-xs uppercase tracking-wider font-medium"
+            size="icon"
+            onClick={() => onUpdate('muted', !section.muted)}
+            className={`h-7 w-7 ${section.muted ? 'text-accent' : 'text-muted-foreground hover:text-foreground'}`}
           >
-            <Square className="h-3 w-3 mr-1" />
-            Stop
+            {section.muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
           </Button>
-        ) : (
+          <Slider
+            value={[section.volume * 100]}
+            onValueChange={([v]) => onUpdate('volume', v / 100)}
+            max={100}
+            step={1}
+            disabled={section.muted}
+            className={`w-20 ${section.muted ? 'opacity-50' : ''}`}
+          />
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-1">
           <Button
             variant="ghost"
-            size="sm"
-            onClick={onTest}
-            className="text-primary hover:text-primary-glow hover:bg-primary/10 text-xs uppercase tracking-wider font-medium"
+            size="icon"
+            onClick={onEditClick}
+            className={`h-7 w-7 ${isEditing ? 'text-primary bg-primary/20' : 'text-muted-foreground hover:text-primary hover:bg-primary/10'}`}
+            title="Edit with generator"
           >
-            <Play className="h-3 w-3 mr-1" />
-            Test
+            <Edit3 className="h-3 w-3" />
           </Button>
-        )}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onDelete}
-          className="h-7 w-7 text-muted-foreground hover:text-accent hover:bg-accent/10"
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+          {isTesting ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onStopTest}
+              className="text-accent hover:text-accent hover:bg-accent/10 text-xs uppercase tracking-wider font-medium"
+            >
+              <Square className="h-3 w-3 mr-1" />
+              Stop
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onTest}
+              className="text-primary hover:text-primary-glow hover:bg-primary/10 text-xs uppercase tracking-wider font-medium"
+            >
+              <Play className="h-3 w-3 mr-1" />
+              Test
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onDelete}
+            className="h-7 w-7 text-muted-foreground hover:text-accent hover:bg-accent/10"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
-    </div>
+
+      {/* Mobile Layout - Card Style */}
+      <div
+        onDragOver={(e) => onDragOver(e, index)}
+        onDragLeave={onDragLeave}
+        onDrop={(e) => onDrop(e, index)}
+        className={`
+          md:hidden p-3 rounded-lg ${baseClasses}
+        `}
+        style={{ animationDelay: `${index * 50}ms` }}
+      >
+        {/* Top row: checkbox, drag handle, name, actions */}
+        <div className="flex items-center gap-2 mb-3">
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={onToggleSelect}
+            className="border-accent/50 data-[state=checked]:bg-accent data-[state=checked]:border-accent shrink-0"
+          />
+          <div
+            className="flex items-center gap-1 cursor-grab shrink-0"
+            draggable
+            onDragStart={(e) => onDragStart(e, index)}
+            onDragEnd={onDragEnd}
+          >
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+            <span className="text-xs font-mono text-muted-foreground w-4">{index + 1}</span>
+          </div>
+          <Input
+            value={section.name}
+            onChange={(e) => onUpdate('name', e.target.value)}
+            className="h-8 flex-1 bg-transparent border-0 border-b border-border/50 rounded-none focus:border-accent px-1 text-sm"
+            placeholder="Section name"
+          />
+          <div className="flex items-center gap-1 shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onEditClick}
+              className={`h-7 w-7 ${isEditing ? 'text-primary bg-primary/20' : 'text-muted-foreground hover:text-primary hover:bg-primary/10'}`}
+            >
+              <Edit3 className="h-3 w-3" />
+            </Button>
+            {isTesting ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onStopTest}
+                className="h-7 w-7 text-accent hover:text-accent hover:bg-accent/10"
+              >
+                <Square className="h-3 w-3" />
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onTest}
+                className="h-7 w-7 text-primary hover:text-primary-glow hover:bg-primary/10"
+              >
+                <Play className="h-3 w-3" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onDelete}
+              className="h-7 w-7 text-muted-foreground hover:text-accent hover:bg-accent/10"
+            >
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Bottom row: parameters in a 2x2 grid */}
+        <div className="grid grid-cols-2 gap-2">
+          {/* Carrier */}
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] uppercase text-muted-foreground w-12">Carrier</span>
+            <Input
+              type="number"
+              value={section.carrier}
+              onChange={(e) => onUpdate('carrier', parseFloat(e.target.value) || 100)}
+              min={20}
+              max={500}
+              className="h-7 w-14 bg-void border-border text-center font-mono text-xs"
+            />
+            <span className="text-[10px] text-muted-foreground">Hz</span>
+          </div>
+
+          {/* Pulse */}
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] uppercase text-muted-foreground w-12">Pulse</span>
+            <Input
+              type="number"
+              value={section.beat}
+              onChange={(e) => onUpdate('beat', parseFloat(e.target.value) || 1)}
+              min={0.5}
+              max={100}
+              step={0.1}
+              className="h-7 w-14 bg-void border-accent/50 text-center font-mono text-xs text-accent"
+            />
+            <span className="text-[10px] text-muted-foreground">Hz</span>
+          </div>
+
+          {/* Duration */}
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] uppercase text-muted-foreground w-12">Duration</span>
+            <Input
+              type="number"
+              value={section.duration}
+              onChange={(e) => onUpdate('duration', parseFloat(e.target.value) || 0)}
+              min={1}
+              className="h-7 w-14 bg-void border-border text-center font-mono text-xs"
+            />
+            <span className="text-[10px] text-muted-foreground">sec</span>
+          </div>
+
+          {/* Volume */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onUpdate('muted', !section.muted)}
+              className={`h-6 w-6 ${section.muted ? 'text-accent' : 'text-muted-foreground'}`}
+            >
+              {section.muted ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
+            </Button>
+            <Slider
+              value={[section.volume * 100]}
+              onValueChange={([v]) => onUpdate('volume', v / 100)}
+              max={100}
+              step={1}
+              disabled={section.muted}
+              className={`flex-1 ${section.muted ? 'opacity-50' : ''}`}
+            />
+          </div>
+        </div>
+      </div>
+    </>
   );
 }

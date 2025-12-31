@@ -109,8 +109,8 @@ export function SectionList({
 
   return (
     <div className="space-y-2">
-      {/* Header */}
-      <div className="grid grid-cols-[24px_40px_2fr_90px_90px_90px_120px_auto] gap-4 items-center p-3 text-xs uppercase tracking-widest text-muted-foreground font-medium">
+      {/* Header - Desktop only */}
+      <div className="hidden md:grid grid-cols-[24px_40px_2fr_90px_90px_90px_120px_auto] gap-4 items-center p-3 text-xs uppercase tracking-widest text-muted-foreground font-medium">
         <div />
         <div className="text-center">#</div>
         <div>Name</div>
