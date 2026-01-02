@@ -337,44 +337,44 @@ export function BinauralWorkstation() {
               />
             </div>
           </div>
-          <div className="flex items-center gap-1 md:gap-2 flex-wrap">
+          <div className="flex items-center gap-0.5 md:gap-1">
             {/* Undo/Redo */}
             <Button
               variant="ghost"
               size="icon"
               onClick={undo}
               disabled={!canUndo}
-              className="text-muted-foreground hover:text-accent hover:bg-accent/10 disabled:opacity-30 shrink-0"
+              className="h-7 w-7 md:h-8 md:w-8 text-muted-foreground hover:text-accent hover:bg-accent/10 disabled:opacity-30"
               title="Undo (Ctrl+Z)"
             >
-              <Undo2 className="h-4 w-4" />
+              <Undo2 className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
               onClick={redo}
               disabled={!canRedo}
-              className="text-muted-foreground hover:text-accent hover:bg-accent/10 disabled:opacity-30 shrink-0"
+              className="h-7 w-7 md:h-8 md:w-8 text-muted-foreground hover:text-accent hover:bg-accent/10 disabled:opacity-30"
               title="Redo (Ctrl+Shift+Z)"
             >
-              <Redo2 className="h-4 w-4" />
+              <Redo2 className="h-3.5 w-3.5" />
             </Button>
 
-            <div className="w-px h-6 bg-border mx-1 md:mx-2 shrink-0" />
+            <div className="w-px h-5 bg-border mx-0.5 md:mx-1" />
 
             {/* Selection actions */}
             <Button
               variant="ghost"
               size="sm"
               onClick={selectedIndices.size === track.sections.length ? handleDeselectAll : handleSelectAll}
-              className="text-muted-foreground hover:text-primary shrink-0 text-xs md:text-sm"
+              className="h-7 md:h-8 px-1.5 md:px-2 text-muted-foreground hover:text-primary text-xs"
             >
               {selectedIndices.size === track.sections.length ? (
-                <Square className="h-4 w-4 mr-1" />
+                <Square className="h-3.5 w-3.5 mr-0.5" />
               ) : (
-                <CheckSquare className="h-4 w-4 mr-1" />
+                <CheckSquare className="h-3.5 w-3.5 mr-0.5" />
               )}
-              <span className="hidden sm:inline">{selectedIndices.size > 0 ? `${selectedIndices.size} selected` : 'Select All'}</span>
+              <span className="hidden sm:inline">{selectedIndices.size > 0 ? `${selectedIndices.size}` : 'All'}</span>
               <span className="sm:hidden">{selectedIndices.size > 0 ? selectedIndices.size : 'All'}</span>
             </Button>
 
@@ -384,24 +384,22 @@ export function BinauralWorkstation() {
                   variant="ghost"
                   size="sm"
                   onClick={handleDuplicateSelected}
-                  className="text-primary hover:text-primary hover:bg-primary/10 shrink-0"
+                  className="h-7 md:h-8 px-1.5 md:px-2 text-primary hover:text-primary hover:bg-primary/10"
                 >
-                  <Copy className="h-4 w-4 md:mr-1" />
-                  <span className="hidden md:inline">Duplicate</span>
+                  <Copy className="h-3.5 w-3.5" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleDeleteSelected}
-                  className="text-accent hover:text-accent hover:bg-accent/10 shrink-0"
+                  className="h-7 md:h-8 px-1.5 md:px-2 text-accent hover:text-accent hover:bg-accent/10"
                 >
-                  <Trash2 className="h-4 w-4 md:mr-1" />
-                  <span className="hidden md:inline">Delete</span>
+                  <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </>
             )}
 
-            <div className="w-px h-6 bg-border mx-1 md:mx-2 shrink-0" />
+            <div className="w-px h-5 bg-border mx-0.5 md:mx-1" />
 
             <PresetLibrary onAddPreset={handleAddPreset} />
 
