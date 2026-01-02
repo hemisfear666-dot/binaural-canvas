@@ -337,7 +337,7 @@ export function BinauralWorkstation() {
               />
             </div>
           </div>
-          <div className="flex items-center gap-1 md:gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-hide">
+          <div className="flex items-center gap-1 md:gap-2 flex-wrap">
             {/* Undo/Redo */}
             <Button
               variant="ghost"
