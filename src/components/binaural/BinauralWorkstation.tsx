@@ -1,6 +1,8 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Section, Track } from '@/types/binaural';
+import { Section, Track, WaveformType, NoiseSettings, AmbienceSettings } from '@/types/binaural';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
+import { useNoiseGenerator } from '@/hooks/useNoiseGenerator';
+import { useAmbiencePlayer } from '@/hooks/useAmbiencePlayer';
 import { useHistory } from '@/hooks/useHistory';
 import { GlobalControls } from './GlobalControls';
 import { TransportControls } from './TransportControls';
@@ -11,6 +13,8 @@ import { StatusBar } from './StatusBar';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { PresetLibrary } from './PresetLibrary';
 import { TriangleGenerator } from './TriangleGenerator';
+import { AudioLayers } from './AudioLayers';
+import { WaveformSelector } from './WaveformSelector';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Undo2, Redo2, Copy, Trash2, CheckSquare, Square } from 'lucide-react';
@@ -27,12 +31,27 @@ const defaultSections: Section[] = [
   { id: 'outro', name: 'Gentle Return', duration: 60, carrier: 100, beat: 14, volume: 0.6, muted: false },
 ];
 
+const defaultNoiseSettings: NoiseSettings = {
+  type: 'pink',
+  volume: 0.3,
+  enabled: false,
+};
+
+const defaultAmbienceSettings: AmbienceSettings = {
+  type: 'none',
+  volume: 0.4,
+  enabled: false,
+};
+
 const defaultTrack: Track = {
   title: 'My Binaural Session',
   sections: defaultSections,
   masterVolume: 0.5,
   isIsochronic: false,
   bpm: 120,
+  waveform: 'sine',
+  noise: defaultNoiseSettings,
+  ambience: defaultAmbienceSettings,
 };
 
 // Load saved track from localStorage
@@ -43,7 +62,14 @@ const loadSavedTrack = (): Track => {
       const parsed = JSON.parse(saved);
       // Validate the parsed data has the required structure
       if (parsed && parsed.sections && Array.isArray(parsed.sections)) {
-        return parsed as Track;
+        // Ensure new fields have defaults for older saves
+        return {
+          ...defaultTrack,
+          ...parsed,
+          noise: parsed.noise || defaultNoiseSettings,
+          ambience: parsed.ambience || defaultAmbienceSettings,
+          waveform: parsed.waveform || 'sine',
+        } as Track;
       }
     }
   } catch (e) {
@@ -90,7 +116,20 @@ export function BinauralWorkstation() {
     stopTest,
     seekTo,
     getTotalDuration,
-  } = useAudioEngine(track.sections, track.masterVolume, track.isIsochronic);
+  } = useAudioEngine(track.sections, track.masterVolume, track.isIsochronic, track.waveform);
+
+  // Background audio layers
+  useNoiseGenerator(
+    track.noise.enabled && playbackState === 'playing',
+    track.noise.type,
+    track.noise.volume
+  );
+  
+  useAmbiencePlayer(
+    track.ambience.enabled && playbackState === 'playing',
+    track.ambience.type,
+    track.ambience.volume
+  );
 
   const totalDuration = useMemo(() => getTotalDuration(), [getTotalDuration]);
 
@@ -251,6 +290,21 @@ export function BinauralWorkstation() {
     setTrack((prev) => ({ ...prev, bpm: Math.max(20, Math.min(300, bpm)) }));
   }, [setTrack]);
 
+  // Waveform handler
+  const handleWaveformChange = useCallback((waveform: WaveformType) => {
+    setTrack((prev) => ({ ...prev, waveform }));
+  }, [setTrack]);
+
+  // Noise settings handler
+  const handleNoiseChange = useCallback((noise: NoiseSettings) => {
+    setTrack((prev) => ({ ...prev, noise }));
+  }, [setTrack]);
+
+  // Ambience settings handler
+  const handleAmbienceChange = useCallback((ambience: AmbienceSettings) => {
+    setTrack((prev) => ({ ...prev, ambience }));
+  }, [setTrack]);
+
   // Active section for triangle generator
   const activeSection = activeEditIndex !== null ? track.sections[activeEditIndex] : null;
 
@@ -336,6 +390,11 @@ export function BinauralWorkstation() {
                 className="h-8 w-16 bg-void border-border text-center font-mono"
               />
             </div>
+            {/* Waveform Selector */}
+            <WaveformSelector
+              waveform={track.waveform}
+              onWaveformChange={handleWaveformChange}
+            />
           </div>
           <div className="flex items-center gap-0.5 md:gap-1">
             {/* Undo/Redo */}
@@ -478,6 +537,12 @@ export function BinauralWorkstation() {
               onPulseChange={handleGeneratorPulseChange}
               disabled={activeEditIndex === null}
             />
+            <AudioLayers
+              noise={track.noise}
+              ambience={track.ambience}
+              onNoiseChange={handleNoiseChange}
+              onAmbienceChange={handleAmbienceChange}
+            />
             <ImportExport
               track={track}
               onImport={handleImport}
@@ -485,8 +550,14 @@ export function BinauralWorkstation() {
             />
           </div>
 
-          {/* Mobile: Import/Export at bottom */}
-          <div className="lg:hidden">
+          {/* Mobile: Audio Layers and Import/Export at bottom */}
+          <div className="lg:hidden space-y-4">
+            <AudioLayers
+              noise={track.noise}
+              ambience={track.ambience}
+              onNoiseChange={handleNoiseChange}
+              onAmbienceChange={handleAmbienceChange}
+            />
             <ImportExport
               track={track}
               onImport={handleImport}
