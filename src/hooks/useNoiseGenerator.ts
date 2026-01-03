@@ -44,19 +44,35 @@ export function useNoiseGenerator(enabled: boolean, noiseType: NoiseType, volume
     return buffer;
   }, []);
 
-  const start = useCallback(() => {
-    if (isPlayingRef.current) return;
-
+  const setupAudio = useCallback(() => {
     if (!audioCtxRef.current) {
       audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
+    return audioCtxRef.current;
+  }, []);
 
-    const ctx = audioCtxRef.current;
+  const startPreview = useCallback((type?: NoiseType) => {
+    const typeToPlay = type ?? noiseType;
+    
+    // Stop any existing playback first
+    if (noiseNodeRef.current) {
+      try {
+        noiseNodeRef.current.stop();
+        noiseNodeRef.current.disconnect();
+      } catch (e) {}
+      noiseNodeRef.current = null;
+    }
+    if (gainNodeRef.current) {
+      gainNodeRef.current.disconnect();
+      gainNodeRef.current = null;
+    }
+
+    const ctx = setupAudio();
     if (ctx.state === 'suspended') {
       ctx.resume();
     }
 
-    const buffer = createNoiseBuffer(ctx, noiseType);
+    const buffer = createNoiseBuffer(ctx, typeToPlay);
     const noiseNode = ctx.createBufferSource();
     noiseNode.buffer = buffer;
     noiseNode.loop = true;
@@ -71,9 +87,9 @@ export function useNoiseGenerator(enabled: boolean, noiseType: NoiseType, volume
     noiseNodeRef.current = noiseNode;
     gainNodeRef.current = gainNode;
     isPlayingRef.current = true;
-  }, [noiseType, volume, createNoiseBuffer]);
+  }, [noiseType, volume, createNoiseBuffer, setupAudio]);
 
-  const stop = useCallback(() => {
+  const stopPreview = useCallback(() => {
     if (noiseNodeRef.current) {
       try {
         noiseNodeRef.current.stop();
@@ -100,22 +116,22 @@ export function useNoiseGenerator(enabled: boolean, noiseType: NoiseType, volume
   // Handle enabled state and noise type changes
   useEffect(() => {
     if (enabled) {
-      stop();
-      start();
+      stopPreview();
+      startPreview();
     } else {
-      stop();
+      stopPreview();
     }
-  }, [enabled, noiseType, start, stop]);
+  }, [enabled, noiseType, startPreview, stopPreview]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      stop();
+      stopPreview();
       if (audioCtxRef.current) {
         audioCtxRef.current.close();
       }
     };
-  }, [stop]);
+  }, [stopPreview]);
 
-  return { start, stop };
+  return { startPreview, stopPreview };
 }

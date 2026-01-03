@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
-import { GripVertical, Volume2, VolumeX, Play, Square, Trash2, Edit3 } from 'lucide-react';
+import { GripVertical, Volume2, VolumeX, Play, Square, Trash2, Edit3, ArrowRight } from 'lucide-react';
 
 interface SectionRowProps {
   section: Section;
@@ -15,7 +15,7 @@ interface SectionRowProps {
   isTesting: boolean;
   isDragging: boolean;
   isDragOver: boolean;
-  onUpdate: (field: keyof Section, value: string | number | boolean) => void;
+  onUpdate: (field: keyof Section, value: string | number | boolean | undefined) => void;
   onDelete: () => void;
   onTest: () => void;
   onStopTest: () => void;
@@ -62,6 +62,8 @@ export function SectionRow({
     animate-slide-in
   `;
 
+  const hasRamping = section.endCarrier !== undefined || section.endBeat !== undefined;
+
   return (
     <>
       {/* Desktop Layout */}
@@ -71,140 +73,203 @@ export function SectionRow({
         onDragLeave={onDragLeave}
         onDrop={(e) => onDrop(e, index)}
         className={`
-          hidden md:grid grid-cols-[24px_40px_2fr_90px_90px_90px_120px_auto] gap-4 items-center
-          p-3 rounded-lg ${baseClasses}
+          hidden md:block p-3 rounded-lg ${baseClasses}
         `}
         style={{ animationDelay: `${index * 50}ms` }}
       >
-        {/* Checkbox */}
-        <div className="flex items-center justify-center">
-          <Checkbox
-            checked={isSelected}
-            onCheckedChange={onToggleSelect}
-            className="border-accent/50 data-[state=checked]:bg-accent data-[state=checked]:border-accent"
-          />
-        </div>
+        {/* Main Row */}
+        <div className="grid grid-cols-[24px_40px_2fr_90px_90px_90px_120px_auto] gap-4 items-center">
+          {/* Checkbox */}
+          <div className="flex items-center justify-center">
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={onToggleSelect}
+              className="border-accent/50 data-[state=checked]:bg-accent data-[state=checked]:border-accent"
+            />
+          </div>
 
-        {/* Drag Handle & Index */}
-        <div
-          className="flex items-center gap-1 cursor-grab"
-          draggable
-          onDragStart={(e) => onDragStart(e, index)}
-          onDragEnd={onDragEnd}
-          title="Drag to reorder"
-          aria-label="Drag section to reorder"
-        >
-          <GripVertical className="h-4 w-4 text-muted-foreground" />
-          <span className="text-xs font-mono text-muted-foreground">{index + 1}</span>
-        </div>
-
-        {/* Name */}
-        <Input
-          value={section.name}
-          onChange={(e) => onUpdate('name', e.target.value)}
-          className="h-8 bg-transparent border-0 border-b border-border/50 rounded-none focus:border-accent px-0"
-          placeholder="Section name"
-        />
-
-        {/* Carrier Frequency */}
-        <div className="flex items-center justify-center gap-1">
-          <Input
-            type="number"
-            value={section.carrier}
-            onChange={(e) => onUpdate('carrier', parseFloat(e.target.value) || 100)}
-            min={20}
-            max={500}
-            className="h-8 w-16 bg-void border-border text-center font-mono"
-          />
-          <span className="w-5 shrink-0 text-xs text-muted-foreground">Hz</span>
-        </div>
-
-        {/* Pulse (Beat) Frequency */}
-        <div className="flex items-center justify-center gap-1">
-          <Input
-            type="number"
-            value={section.beat}
-            onChange={(e) => onUpdate('beat', parseFloat(e.target.value) || 1)}
-            min={0.5}
-            max={100}
-            step={0.1}
-            className="h-8 w-16 bg-void border-accent/50 text-center font-mono text-accent"
-          />
-          <span className="w-5 shrink-0 text-xs text-muted-foreground">Hz</span>
-        </div>
-
-        {/* Duration (seconds) */}
-        <div className="flex items-center justify-center gap-1">
-          <Input
-            type="number"
-            value={section.duration}
-            onChange={(e) => onUpdate('duration', parseFloat(e.target.value) || 0)}
-            min={1}
-            className="h-8 w-16 bg-void border-border text-center font-mono"
-          />
-          <span className="w-5 shrink-0 text-xs text-muted-foreground">sec</span>
-        </div>
-
-        {/* Volume Slider */}
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onUpdate('muted', !section.muted)}
-            className={`h-7 w-7 ${section.muted ? 'text-accent' : 'text-muted-foreground hover:text-foreground'}`}
+          {/* Drag Handle & Index */}
+          <div
+            className="flex items-center gap-1 cursor-grab"
+            draggable
+            onDragStart={(e) => onDragStart(e, index)}
+            onDragEnd={onDragEnd}
+            title="Drag to reorder"
+            aria-label="Drag section to reorder"
           >
-            {section.muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-          </Button>
-          <Slider
-            value={[section.volume * 100]}
-            onValueChange={([v]) => onUpdate('volume', v / 100)}
-            max={100}
-            step={1}
-            disabled={section.muted}
-            className={`w-20 ${section.muted ? 'opacity-50' : ''}`}
-          />
-        </div>
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+            <span className="text-xs font-mono text-muted-foreground">{index + 1}</span>
+          </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onEditClick}
-            className={`h-7 w-7 ${isEditing ? 'text-primary bg-primary/20' : 'text-muted-foreground hover:text-primary hover:bg-primary/10'}`}
-            title="Edit with generator"
-          >
-            <Edit3 className="h-3 w-3" />
-          </Button>
-          {isTesting ? (
+          {/* Name */}
+          <Input
+            value={section.name}
+            onChange={(e) => onUpdate('name', e.target.value)}
+            className="h-8 bg-transparent border-0 border-b border-border/50 rounded-none focus:border-accent px-0"
+            placeholder="Section name"
+          />
+
+          {/* Carrier Frequency */}
+          <div className="flex items-center justify-center gap-1">
+            <Input
+              type="number"
+              value={section.carrier}
+              onChange={(e) => onUpdate('carrier', parseFloat(e.target.value) || 100)}
+              min={20}
+              max={500}
+              className="h-8 w-16 bg-void border-border text-center font-mono"
+            />
+            <span className="w-5 shrink-0 text-xs text-muted-foreground">Hz</span>
+          </div>
+
+          {/* Pulse (Beat) Frequency */}
+          <div className="flex items-center justify-center gap-1">
+            <Input
+              type="number"
+              value={section.beat}
+              onChange={(e) => onUpdate('beat', parseFloat(e.target.value) || 1)}
+              min={0.5}
+              max={100}
+              step={0.1}
+              className="h-8 w-16 bg-void border-accent/50 text-center font-mono text-accent"
+            />
+            <span className="w-5 shrink-0 text-xs text-muted-foreground">Hz</span>
+          </div>
+
+          {/* Duration (seconds) */}
+          <div className="flex items-center justify-center gap-1">
+            <Input
+              type="number"
+              value={section.duration}
+              onChange={(e) => onUpdate('duration', parseFloat(e.target.value) || 0)}
+              min={1}
+              className="h-8 w-16 bg-void border-border text-center font-mono"
+            />
+            <span className="w-5 shrink-0 text-xs text-muted-foreground">sec</span>
+          </div>
+
+          {/* Volume Slider */}
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
-              size="sm"
-              onClick={onStopTest}
-              className="text-accent hover:text-accent hover:bg-accent/10 text-xs uppercase tracking-wider font-medium"
+              size="icon"
+              onClick={() => onUpdate('muted', !section.muted)}
+              className={`h-7 w-7 ${section.muted ? 'text-accent' : 'text-muted-foreground hover:text-foreground'}`}
             >
-              <Square className="h-3 w-3 mr-1" />
-              Stop
+              {section.muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
             </Button>
-          ) : (
+            <Slider
+              value={[section.volume * 100]}
+              onValueChange={([v]) => onUpdate('volume', v / 100)}
+              max={100}
+              step={1}
+              disabled={section.muted}
+              className={`w-20 ${section.muted ? 'opacity-50' : ''}`}
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-1">
             <Button
               variant="ghost"
-              size="sm"
-              onClick={onTest}
-              className="text-primary hover:text-primary-glow hover:bg-primary/10 text-xs uppercase tracking-wider font-medium"
+              size="icon"
+              onClick={onEditClick}
+              className={`h-7 w-7 ${isEditing ? 'text-primary bg-primary/20' : 'text-muted-foreground hover:text-primary hover:bg-primary/10'}`}
+              title="Edit with generator"
             >
-              <Play className="h-3 w-3 mr-1" />
-              Test
+              <Edit3 className="h-3 w-3" />
             </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onDelete}
-            className="h-7 w-7 text-muted-foreground hover:text-accent hover:bg-accent/10"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+            {isTesting ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onStopTest}
+                className="text-accent hover:text-accent hover:bg-accent/10 text-xs uppercase tracking-wider font-medium"
+              >
+                <Square className="h-3 w-3 mr-1" />
+                Stop
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onTest}
+                className="text-primary hover:text-primary-glow hover:bg-primary/10 text-xs uppercase tracking-wider font-medium"
+              >
+                <Play className="h-3 w-3 mr-1" />
+                Test
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onDelete}
+              className="h-7 w-7 text-muted-foreground hover:text-accent hover:bg-accent/10"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Ramping Row (Collapsible/Expandable) */}
+        <div className="mt-2 pt-2 border-t border-border/30">
+          <div className="flex items-center gap-4 pl-16">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+              <ArrowRight className="h-3 w-3" />
+              Ramp To
+            </span>
+            
+            {/* End Carrier */}
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-muted-foreground">Carrier:</span>
+              <Input
+                type="number"
+                value={section.endCarrier ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onUpdate('endCarrier', val === '' ? undefined : parseFloat(val) || section.carrier);
+                }}
+                min={20}
+                max={500}
+                placeholder={String(section.carrier)}
+                className="h-7 w-14 bg-void border-primary/30 text-center font-mono text-xs"
+              />
+              <span className="text-[10px] text-muted-foreground">Hz</span>
+            </div>
+
+            {/* End Beat */}
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-muted-foreground">Pulse:</span>
+              <Input
+                type="number"
+                value={section.endBeat ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onUpdate('endBeat', val === '' ? undefined : parseFloat(val) || section.beat);
+                }}
+                min={0.5}
+                max={100}
+                step={0.1}
+                placeholder={String(section.beat)}
+                className="h-7 w-14 bg-void border-accent/30 text-center font-mono text-xs text-accent"
+              />
+              <span className="text-[10px] text-muted-foreground">Hz</span>
+            </div>
+
+            {hasRamping && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  onUpdate('endCarrier', undefined);
+                  onUpdate('endBeat', undefined);
+                }}
+                className="h-6 px-2 text-[10px] text-muted-foreground hover:text-accent"
+              >
+                Clear
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -279,7 +344,7 @@ export function SectionRow({
           </div>
         </div>
 
-        {/* Bottom row: parameters in a 2x2 grid */}
+        {/* Parameters grid */}
         <div className="grid grid-cols-2 gap-2">
           {/* Carrier */}
           <div className="flex items-center gap-1">
@@ -295,6 +360,24 @@ export function SectionRow({
             <span className="text-[10px] text-muted-foreground">Hz</span>
           </div>
 
+          {/* End Carrier */}
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] uppercase text-muted-foreground w-12">→ End</span>
+            <Input
+              type="number"
+              value={section.endCarrier ?? ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                onUpdate('endCarrier', val === '' ? undefined : parseFloat(val) || section.carrier);
+              }}
+              min={20}
+              max={500}
+              placeholder={String(section.carrier)}
+              className="h-7 w-14 bg-void border-primary/30 text-center font-mono text-xs"
+            />
+            <span className="text-[10px] text-muted-foreground">Hz</span>
+          </div>
+
           {/* Pulse */}
           <div className="flex items-center gap-1">
             <span className="text-[10px] uppercase text-muted-foreground w-12">Pulse</span>
@@ -306,6 +389,25 @@ export function SectionRow({
               max={100}
               step={0.1}
               className="h-7 w-14 bg-void border-accent/50 text-center font-mono text-xs text-accent"
+            />
+            <span className="text-[10px] text-muted-foreground">Hz</span>
+          </div>
+
+          {/* End Pulse */}
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] uppercase text-muted-foreground w-12">→ End</span>
+            <Input
+              type="number"
+              value={section.endBeat ?? ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                onUpdate('endBeat', val === '' ? undefined : parseFloat(val) || section.beat);
+              }}
+              min={0.5}
+              max={100}
+              step={0.1}
+              placeholder={String(section.beat)}
+              className="h-7 w-14 bg-void border-accent/30 text-center font-mono text-xs text-accent"
             />
             <span className="text-[10px] text-muted-foreground">Hz</span>
           </div>

@@ -26,6 +26,22 @@ export interface AmbienceSettings {
   enabled: boolean;
 }
 
+export interface EffectsSettings {
+  reverb: {
+    enabled: boolean;
+    amount: number;
+  };
+  lowpass: {
+    enabled: boolean;
+    frequency: number;
+  };
+  autoPan: {
+    enabled: boolean;
+    rate: number;
+    depth: number;
+  };
+}
+
 export interface Track {
   title: string;
   sections: Section[];
@@ -35,6 +51,7 @@ export interface Track {
   waveform: WaveformType;
   noise: NoiseSettings;
   ambience: AmbienceSettings;
+  effects: EffectsSettings;
 }
 
 export type PlaybackState = 'stopped' | 'playing' | 'paused';

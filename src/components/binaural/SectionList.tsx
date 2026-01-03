@@ -33,9 +33,15 @@ export function SectionList({
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const handleUpdate = useCallback(
-    (index: number, field: keyof Section, value: string | number | boolean) => {
+    (index: number, field: keyof Section, value: string | number | boolean | undefined) => {
       const updated = [...sections];
-      updated[index] = { ...updated[index], [field]: value };
+      if (value === undefined) {
+        // Remove the optional field
+        const { [field]: _, ...rest } = updated[index];
+        updated[index] = rest as Section;
+      } else {
+        updated[index] = { ...updated[index], [field]: value };
+      }
       onSectionsChange(updated);
     },
     [sections, onSectionsChange]
