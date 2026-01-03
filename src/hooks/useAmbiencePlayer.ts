@@ -1,62 +1,96 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { AmbienceType } from '@/types/binaural';
 
-// Placeholder URLs - these would be replaced with actual audio files
+// Working audio URLs from reliable sources
 const AMBIENCE_URLS: Record<AmbienceType, string | null> = {
   none: null,
-  rain: 'https://cdn.freesound.org/previews/531/531947_2293324-lq.mp3',
-  forest: 'https://cdn.freesound.org/previews/514/514906_11405048-lq.mp3', 
-  drone: 'https://cdn.freesound.org/previews/560/560393_5674468-lq.mp3',
+  rain: 'https://assets.mixkit.co/active_storage/sfx/212/212-preview.mp3',
+  forest: 'https://assets.mixkit.co/active_storage/sfx/1210/1210-preview.mp3',
+  drone: 'https://assets.mixkit.co/active_storage/sfx/123/123-preview.mp3',
 };
 
-export function useAmbiencePlayer(enabled: boolean, ambienceType: AmbienceType, volume: number) {
+export function useAmbiencePlayer(
+  enabled: boolean,
+  ambienceType: AmbienceType,
+  volume: number
+) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const currentTypeRef = useRef<AmbienceType>('none');
+  const isConnectedRef = useRef(false);
 
-  const start = useCallback(() => {
-    if (ambienceType === 'none') return;
-    
-    const url = AMBIENCE_URLS[ambienceType];
-    if (!url) return;
-
-    // Create audio element if needed
-    if (!audioRef.current) {
-      audioRef.current = new Audio();
-      audioRef.current.crossOrigin = 'anonymous';
-      audioRef.current.loop = true;
-    }
-
-    // Set up audio context for volume control
+  const setupAudio = useCallback(() => {
     if (!audioCtxRef.current) {
       audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
+    
+    if (!gainNodeRef.current) {
+      gainNodeRef.current = audioCtxRef.current.createGain();
+      gainNodeRef.current.connect(audioCtxRef.current.destination);
+    }
+    
+    return audioCtxRef.current;
+  }, []);
 
-    const ctx = audioCtxRef.current;
+  const startPreview = useCallback((type?: AmbienceType) => {
+    const typeToPlay = type ?? ambienceType;
+    if (typeToPlay === 'none') return;
+    
+    const url = AMBIENCE_URLS[typeToPlay];
+    if (!url) return;
+
+    const ctx = setupAudio();
+    
     if (ctx.state === 'suspended') {
       ctx.resume();
     }
 
-    // Connect audio element to gain node
-    if (!sourceRef.current && audioRef.current) {
-      sourceRef.current = ctx.createMediaElementSource(audioRef.current);
-      gainNodeRef.current = ctx.createGain();
-      sourceRef.current.connect(gainNodeRef.current);
-      gainNodeRef.current.connect(ctx.destination);
+    // Create new audio element if needed or if type changed
+    if (!audioRef.current || currentTypeRef.current !== typeToPlay) {
+      // Cleanup old audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
+      if (sourceRef.current) {
+        try {
+          sourceRef.current.disconnect();
+        } catch (e) {}
+        sourceRef.current = null;
+        isConnectedRef.current = false;
+      }
+
+      audioRef.current = new Audio();
+      audioRef.current.crossOrigin = 'anonymous';
+      audioRef.current.loop = true;
+      audioRef.current.src = url;
+      currentTypeRef.current = typeToPlay;
+    }
+
+    // Connect to Web Audio API if not connected
+    if (!isConnectedRef.current && audioRef.current && gainNodeRef.current) {
+      try {
+        sourceRef.current = ctx.createMediaElementSource(audioRef.current);
+        sourceRef.current.connect(gainNodeRef.current);
+        isConnectedRef.current = true;
+      } catch (e) {
+        // Already connected
+        isConnectedRef.current = true;
+      }
     }
 
     if (gainNodeRef.current) {
       gainNodeRef.current.gain.setValueAtTime(volume, ctx.currentTime);
     }
 
-    audioRef.current.src = url;
-    audioRef.current.play().catch(() => {
-      // Autoplay may be blocked
+    audioRef.current?.play().catch((e) => {
+      console.log('Ambience autoplay blocked:', e);
     });
-  }, [ambienceType, volume]);
+  }, [ambienceType, volume, setupAudio]);
 
-  const stop = useCallback(() => {
+  const stopPreview = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -73,34 +107,40 @@ export function useAmbiencePlayer(enabled: boolean, ambienceType: AmbienceType, 
   // Handle enabled state and type changes
   useEffect(() => {
     if (enabled && ambienceType !== 'none') {
-      // Need to recreate for type change
-      if (audioRef.current && audioRef.current.src !== AMBIENCE_URLS[ambienceType]) {
-        stop();
-        // Small delay to ensure proper cleanup
-        setTimeout(start, 50);
-      } else if (!audioRef.current?.src) {
-        start();
+      // Restart if type changed
+      if (currentTypeRef.current !== ambienceType) {
+        stopPreview();
+        setTimeout(() => startPreview(), 100);
+      } else {
+        startPreview();
       }
     } else {
-      stop();
+      stopPreview();
     }
-  }, [enabled, ambienceType, start, stop]);
+  }, [enabled, ambienceType, startPreview, stopPreview]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      stop();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
       if (sourceRef.current) {
-        sourceRef.current.disconnect();
+        try {
+          sourceRef.current.disconnect();
+        } catch (e) {}
       }
       if (gainNodeRef.current) {
-        gainNodeRef.current.disconnect();
+        try {
+          gainNodeRef.current.disconnect();
+        } catch (e) {}
       }
       if (audioCtxRef.current) {
         audioCtxRef.current.close();
       }
     };
-  }, [stop]);
+  }, []);
 
-  return { start, stop };
+  return { startPreview, stopPreview };
 }

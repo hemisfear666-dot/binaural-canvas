@@ -1,6 +1,7 @@
 import { useRef, useCallback, useMemo } from 'react';
 import { Section } from '@/types/binaural';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 
 interface TimelineProps {
@@ -8,6 +9,8 @@ interface TimelineProps {
   currentTime: number;
   currentSectionIndex: number | null;
   pixelsPerSecond: number;
+  bpm: number;
+  onBpmChange: (bpm: number) => void;
   onSeek: (time: number) => void;
   onSectionClick: (index: number) => void;
   onZoomIn: () => void;
@@ -20,6 +23,8 @@ export function Timeline({
   currentTime,
   currentSectionIndex,
   pixelsPerSecond,
+  bpm,
+  onBpmChange,
   onSeek,
   onSectionClick,
   onZoomIn,
@@ -76,11 +81,24 @@ export function Timeline({
   return (
     <div className="panel rounded-lg overflow-hidden">
       {/* Zoom controls */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-void-surface">
-        <span className="text-xs uppercase tracking-widest text-muted-foreground font-medium">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-void-surface gap-2">
+        <span className="text-xs uppercase tracking-widest text-muted-foreground font-medium shrink-0">
           Timeline
         </span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap justify-end">
+          {/* BPM Control */}
+          <div className="flex items-center gap-1 mr-2">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">BPM</span>
+            <Input
+              type="number"
+              value={bpm}
+              onChange={(e) => onBpmChange(parseInt(e.target.value) || 120)}
+              min={20}
+              max={300}
+              className="h-6 w-12 bg-void border-border text-center font-mono text-xs"
+            />
+          </div>
+          <div className="w-px h-4 bg-border mx-1" />
           <Button
             variant="ghost"
             size="icon"
@@ -106,7 +124,7 @@ export function Timeline({
             variant="ghost"
             size="icon"
             onClick={onFitToView}
-            className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 ml-2"
+            className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 ml-1"
             title="Fit to view"
           >
             <Maximize2 className="h-4 w-4" />

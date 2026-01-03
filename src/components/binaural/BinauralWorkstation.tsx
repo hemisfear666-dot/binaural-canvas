@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Section, Track, WaveformType, NoiseSettings, AmbienceSettings } from '@/types/binaural';
+import { Section, Track, WaveformType, NoiseSettings, AmbienceSettings, EffectsSettings, NoiseType, AmbienceType } from '@/types/binaural';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { useNoiseGenerator } from '@/hooks/useNoiseGenerator';
 import { useAmbiencePlayer } from '@/hooks/useAmbiencePlayer';
@@ -15,8 +15,8 @@ import { PresetLibrary } from './PresetLibrary';
 import { TriangleGenerator } from './TriangleGenerator';
 import { AudioLayers } from './AudioLayers';
 import { WaveformSelector } from './WaveformSelector';
+import { EffectsRack } from './EffectsRack';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Undo2, Redo2, Copy, Trash2, CheckSquare, Square } from 'lucide-react';
 import { toast } from 'sonner';
 import logo from '@/assets/logo.png';
@@ -43,6 +43,12 @@ const defaultAmbienceSettings: AmbienceSettings = {
   enabled: false,
 };
 
+const defaultEffectsSettings: EffectsSettings = {
+  reverb: { enabled: false, amount: 0.3 },
+  lowpass: { enabled: false, frequency: 2000 },
+  autoPan: { enabled: false, rate: 0.1, depth: 0.5 },
+};
+
 const defaultTrack: Track = {
   title: 'My Binaural Session',
   sections: defaultSections,
@@ -52,6 +58,7 @@ const defaultTrack: Track = {
   waveform: 'sine',
   noise: defaultNoiseSettings,
   ambience: defaultAmbienceSettings,
+  effects: defaultEffectsSettings,
 };
 
 // Load saved track from localStorage
@@ -69,6 +76,7 @@ const loadSavedTrack = (): Track => {
           noise: parsed.noise || defaultNoiseSettings,
           ambience: parsed.ambience || defaultAmbienceSettings,
           waveform: parsed.waveform || 'sine',
+          effects: parsed.effects || defaultEffectsSettings,
         } as Track;
       }
     }
@@ -118,18 +126,35 @@ export function BinauralWorkstation() {
     getTotalDuration,
   } = useAudioEngine(track.sections, track.masterVolume, track.isIsochronic, track.waveform);
 
-  // Background audio layers
-  useNoiseGenerator(
+  // Background audio layers with preview support
+  const { startPreview: startNoisePreview, stopPreview: stopNoisePreview } = useNoiseGenerator(
     track.noise.enabled && playbackState === 'playing',
     track.noise.type,
     track.noise.volume
   );
   
-  useAmbiencePlayer(
+  const { startPreview: startAmbiencePreview, stopPreview: stopAmbiencePreview } = useAmbiencePlayer(
     track.ambience.enabled && playbackState === 'playing',
     track.ambience.type,
     track.ambience.volume
   );
+
+  // Preview handlers
+  const handlePreviewNoise = useCallback((type: NoiseType) => {
+    startNoisePreview(type);
+  }, [startNoisePreview]);
+
+  const handleStopPreviewNoise = useCallback(() => {
+    stopNoisePreview();
+  }, [stopNoisePreview]);
+
+  const handlePreviewAmbience = useCallback((type: AmbienceType) => {
+    startAmbiencePreview(type);
+  }, [startAmbiencePreview]);
+
+  const handleStopPreviewAmbience = useCallback(() => {
+    stopAmbiencePreview();
+  }, [stopAmbiencePreview]);
 
   const totalDuration = useMemo(() => getTotalDuration(), [getTotalDuration]);
 
@@ -305,6 +330,11 @@ export function BinauralWorkstation() {
     setTrack((prev) => ({ ...prev, ambience }));
   }, [setTrack]);
 
+  // Effects settings handler
+  const handleEffectsChange = useCallback((effects: EffectsSettings) => {
+    setTrack((prev) => ({ ...prev, effects }));
+  }, [setTrack]);
+
   // Active section for triangle generator
   const activeSection = activeEditIndex !== null ? track.sections[activeEditIndex] : null;
 
@@ -378,18 +408,6 @@ export function BinauralWorkstation() {
               isIsochronic={track.isIsochronic}
               onModeChange={handleModeChange}
             />
-            {/* BPM Control */}
-            <div className="flex items-center gap-2 px-4 py-2 sm:py-0">
-              <span className="text-xs uppercase tracking-wider text-muted-foreground">BPM</span>
-              <Input
-                type="number"
-                value={track.bpm}
-                onChange={(e) => handleBpmChange(parseInt(e.target.value) || 120)}
-                min={20}
-                max={300}
-                className="h-8 w-16 bg-void border-border text-center font-mono"
-              />
-            </div>
             {/* Waveform Selector */}
             <WaveformSelector
               waveform={track.waveform}
@@ -490,6 +508,8 @@ export function BinauralWorkstation() {
           currentTime={currentTime}
           currentSectionIndex={currentSectionIndex}
           pixelsPerSecond={pixelsPerSecond}
+          bpm={track.bpm}
+          onBpmChange={handleBpmChange}
           onSeek={seekTo}
           onSectionClick={handleSectionClick}
           onZoomIn={handleZoomIn}
@@ -510,21 +530,29 @@ export function BinauralWorkstation() {
             />
           </div>
 
-          <div className="lg:col-span-3 panel rounded-lg p-3 md:p-4">
-            <h3 className="text-xs uppercase tracking-widest text-accent font-medium mb-3 md:mb-4">
-              Sequence Editor
-            </h3>
-            <SectionList
-              sections={track.sections}
-              currentSectionIndex={currentSectionIndex}
-              selectedIndices={selectedIndices}
-              activeEditIndex={activeEditIndex}
-              testingIndex={testingIndex}
-              onSectionsChange={handleSectionsChange}
-              onTestSection={handleTestSection}
-              onStopTest={stopTest}
-              onToggleSelect={handleToggleSelect}
-              onEditClick={handleSectionEditClick}
+          <div className="lg:col-span-3 space-y-4">
+            <div className="panel rounded-lg p-3 md:p-4">
+              <h3 className="text-xs uppercase tracking-widest text-accent font-medium mb-3 md:mb-4">
+                Sequence Editor
+              </h3>
+              <SectionList
+                sections={track.sections}
+                currentSectionIndex={currentSectionIndex}
+                selectedIndices={selectedIndices}
+                activeEditIndex={activeEditIndex}
+                testingIndex={testingIndex}
+                onSectionsChange={handleSectionsChange}
+                onTestSection={handleTestSection}
+                onStopTest={stopTest}
+                onToggleSelect={handleToggleSelect}
+                onEditClick={handleSectionEditClick}
+              />
+            </div>
+
+            {/* Effects Rack - directly beneath sequence editor */}
+            <EffectsRack
+              effects={track.effects}
+              onEffectsChange={handleEffectsChange}
             />
           </div>
 
@@ -542,6 +570,10 @@ export function BinauralWorkstation() {
               ambience={track.ambience}
               onNoiseChange={handleNoiseChange}
               onAmbienceChange={handleAmbienceChange}
+              onPreviewNoise={handlePreviewNoise}
+              onStopPreviewNoise={handleStopPreviewNoise}
+              onPreviewAmbience={handlePreviewAmbience}
+              onStopPreviewAmbience={handleStopPreviewAmbience}
             />
             <ImportExport
               track={track}
@@ -557,6 +589,10 @@ export function BinauralWorkstation() {
               ambience={track.ambience}
               onNoiseChange={handleNoiseChange}
               onAmbienceChange={handleAmbienceChange}
+              onPreviewNoise={handlePreviewNoise}
+              onStopPreviewNoise={handleStopPreviewNoise}
+              onPreviewAmbience={handlePreviewAmbience}
+              onStopPreviewAmbience={handleStopPreviewAmbience}
             />
             <ImportExport
               track={track}

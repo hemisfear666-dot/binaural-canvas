@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Waves, Trees, Cloud, Volume2 } from 'lucide-react';
+import { Waves, Trees, Cloud, Volume2, Play, Square } from 'lucide-react';
 import { NoiseType, AmbienceType, NoiseSettings, AmbienceSettings } from '@/types/binaural';
 
 interface AudioLayersProps {
@@ -10,6 +12,10 @@ interface AudioLayersProps {
   ambience: AmbienceSettings;
   onNoiseChange: (noise: NoiseSettings) => void;
   onAmbienceChange: (ambience: AmbienceSettings) => void;
+  onPreviewNoise?: (type: NoiseType) => void;
+  onStopPreviewNoise?: () => void;
+  onPreviewAmbience?: (type: AmbienceType) => void;
+  onStopPreviewAmbience?: () => void;
 }
 
 export function AudioLayers({
@@ -17,7 +23,36 @@ export function AudioLayers({
   ambience,
   onNoiseChange,
   onAmbienceChange,
+  onPreviewNoise,
+  onStopPreviewNoise,
+  onPreviewAmbience,
+  onStopPreviewAmbience,
 }: AudioLayersProps) {
+  const [previewingNoise, setPreviewingNoise] = useState(false);
+  const [previewingAmbience, setPreviewingAmbience] = useState(false);
+
+  const handleNoisePreview = () => {
+    if (previewingNoise) {
+      onStopPreviewNoise?.();
+      setPreviewingNoise(false);
+    } else {
+      onPreviewNoise?.(noise.type);
+      setPreviewingNoise(true);
+    }
+  };
+
+  const handleAmbiencePreview = () => {
+    if (previewingAmbience) {
+      onStopPreviewAmbience?.();
+      setPreviewingAmbience(false);
+    } else {
+      if (ambience.type !== 'none') {
+        onPreviewAmbience?.(ambience.type);
+        setPreviewingAmbience(true);
+      }
+    }
+  };
+
   return (
     <div className="panel rounded-lg p-3 sm:p-4 space-y-4">
       <h3 className="text-xs uppercase tracking-widest text-accent font-medium">
@@ -33,17 +68,36 @@ export function AudioLayers({
               Noise
             </Label>
           </div>
-          <Switch
-            checked={noise.enabled}
-            onCheckedChange={(enabled) => onNoiseChange({ ...noise, enabled })}
-            className="data-[state=checked]:bg-primary"
-          />
+          <div className="flex items-center gap-2">
+            {onPreviewNoise && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleNoisePreview}
+                className={`h-6 w-6 ${previewingNoise ? 'text-accent bg-accent/20' : 'text-muted-foreground hover:text-primary'}`}
+                title={previewingNoise ? 'Stop preview' : 'Preview noise'}
+              >
+                {previewingNoise ? <Square className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+              </Button>
+            )}
+            <Switch
+              checked={noise.enabled}
+              onCheckedChange={(enabled) => onNoiseChange({ ...noise, enabled })}
+              className="data-[state=checked]:bg-primary"
+            />
+          </div>
         </div>
 
-        <div className={`space-y-2 ${!noise.enabled ? 'opacity-50 pointer-events-none' : ''}`}>
+        <div className={`space-y-2 ${!noise.enabled && !previewingNoise ? 'opacity-50' : ''}`}>
           <Select
             value={noise.type}
-            onValueChange={(type: NoiseType) => onNoiseChange({ ...noise, type })}
+            onValueChange={(type: NoiseType) => {
+              onNoiseChange({ ...noise, type });
+              if (previewingNoise) {
+                onStopPreviewNoise?.();
+                setTimeout(() => onPreviewNoise?.(type), 50);
+              }
+            }}
           >
             <SelectTrigger className="h-8 bg-void border-border text-xs">
               <SelectValue />
@@ -83,17 +137,39 @@ export function AudioLayers({
               Soundscape
             </Label>
           </div>
-          <Switch
-            checked={ambience.enabled}
-            onCheckedChange={(enabled) => onAmbienceChange({ ...ambience, enabled })}
-            className="data-[state=checked]:bg-accent"
-          />
+          <div className="flex items-center gap-2">
+            {onPreviewAmbience && ambience.type !== 'none' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleAmbiencePreview}
+                className={`h-6 w-6 ${previewingAmbience ? 'text-accent bg-accent/20' : 'text-muted-foreground hover:text-primary'}`}
+                title={previewingAmbience ? 'Stop preview' : 'Preview soundscape'}
+              >
+                {previewingAmbience ? <Square className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+              </Button>
+            )}
+            <Switch
+              checked={ambience.enabled}
+              onCheckedChange={(enabled) => onAmbienceChange({ ...ambience, enabled })}
+              className="data-[state=checked]:bg-accent"
+            />
+          </div>
         </div>
 
-        <div className={`space-y-2 ${!ambience.enabled ? 'opacity-50 pointer-events-none' : ''}`}>
+        <div className={`space-y-2 ${!ambience.enabled && !previewingAmbience ? 'opacity-50' : ''}`}>
           <Select
             value={ambience.type}
-            onValueChange={(type: AmbienceType) => onAmbienceChange({ ...ambience, type })}
+            onValueChange={(type: AmbienceType) => {
+              onAmbienceChange({ ...ambience, type });
+              if (previewingAmbience && type !== 'none') {
+                onStopPreviewAmbience?.();
+                setTimeout(() => onPreviewAmbience?.(type), 50);
+              } else if (type === 'none') {
+                onStopPreviewAmbience?.();
+                setPreviewingAmbience(false);
+              }
+            }}
           >
             <SelectTrigger className="h-8 bg-void border-border text-xs">
               <SelectValue />
