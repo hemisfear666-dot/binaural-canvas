@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Section, Track, WaveformType, NoiseSettings, AmbienceSettings, EffectsSettings, NoiseType, AmbienceType } from '@/types/binaural';
+import { useAudioMixer } from '@/hooks/useAudioMixer';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { useNoiseGenerator } from '@/hooks/useNoiseGenerator';
 import { useAmbiencePlayer } from '@/hooks/useAmbiencePlayer';
@@ -103,6 +104,14 @@ export function BinauralWorkstation() {
   const [pixelsPerSecond, setPixelsPerSecond] = useState(8);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Shared mixer (tones + background layers + FX)
+  const mixer = useAudioMixer(
+    track.masterVolume,
+    track.noise.volume,
+    track.ambience.volume,
+    track.effects
+  );
+
   // Save track to localStorage whenever it changes
   useEffect(() => {
     try {
@@ -124,19 +133,27 @@ export function BinauralWorkstation() {
     stopTest,
     seekTo,
     getTotalDuration,
-  } = useAudioEngine(track.sections, track.masterVolume, track.isIsochronic, track.waveform);
-
-  // Background audio layers with preview support
-  const { startPreview: startNoisePreview, stopPreview: stopNoisePreview } = useNoiseGenerator(
-    track.noise.enabled && playbackState === 'playing',
-    track.noise.type,
-    track.noise.volume
+  } = useAudioEngine(
+    track.sections,
+    track.isIsochronic,
+    track.waveform,
+    mixer.ensure,
+    mixer.getToneInput
   );
-  
+
+  // Background audio layers with preview support (routed into the shared mixer)
+  const { startPreview: startNoisePreview, stopPreview: stopNoisePreview } = useNoiseGenerator(
+    mixer.ensure,
+    mixer.getNoiseInput,
+    track.noise.enabled && playbackState === 'playing',
+    track.noise.type
+  );
+
   const { startPreview: startAmbiencePreview, stopPreview: stopAmbiencePreview } = useAmbiencePlayer(
+    mixer.ensure,
+    mixer.getAmbienceInput,
     track.ambience.enabled && playbackState === 'playing',
-    track.ambience.type,
-    track.ambience.volume
+    track.ambience.type
   );
 
   // Preview handlers
@@ -195,8 +212,9 @@ export function BinauralWorkstation() {
   }, [resetTrack]);
 
   const handlePlay = useCallback(() => {
+    mixer.ensure();
     play(currentTime);
-  }, [play, currentTime]);
+  }, [mixer, play, currentTime]);
 
   const handleTestSection = useCallback(
     (index: number) => {
