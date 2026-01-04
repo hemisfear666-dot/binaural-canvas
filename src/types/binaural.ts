@@ -6,9 +6,11 @@ export interface Section {
   endCarrier?: number; // optional end frequency for ramping
   beat: number; // binaural beat frequency in Hz
   endBeat?: number; // optional end beat frequency for ramping
+  rampEnabled?: boolean; // allow toggling ramp on/off without losing targets
   volume: number; // 0-1
   muted: boolean;
 }
+
 
 export type WaveformType = 'sine' | 'triangle' | 'sawtooth';
 export type NoiseType = 'white' | 'pink' | 'brown';

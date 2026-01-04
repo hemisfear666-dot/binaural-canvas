@@ -62,7 +62,8 @@ export function SectionRow({
     animate-slide-in
   `;
 
-  const hasRamping = section.endCarrier !== undefined || section.endBeat !== undefined;
+  const hasRampTargets = section.endCarrier !== undefined || section.endBeat !== undefined;
+  const rampEnabled = section.rampEnabled ?? hasRampTargets;
 
   return (
     <>
@@ -131,7 +132,7 @@ export function SectionRow({
               min={0.5}
               max={100}
               step={0.1}
-              className="h-8 w-16 bg-void border-accent/50 text-center font-mono text-accent"
+              className="h-8 w-[4.5rem] bg-void border-accent/50 text-center font-mono text-accent"
             />
             <span className="w-5 shrink-0 text-xs text-muted-foreground">Hz</span>
           </div>
@@ -211,60 +212,99 @@ export function SectionRow({
           </div>
         </div>
 
-        {/* Ramping Row (Collapsible/Expandable) */}
+        {/* Ramping Row */}
         <div className="mt-2 pt-2 border-t border-border/30">
-          <div className="flex items-center gap-4 pl-16">
+          <div className="flex items-center gap-3 pl-16 flex-wrap">
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
               <ArrowRight className="h-3 w-3" />
               Ramp To
             </span>
-            
-            {/* End Carrier */}
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] text-muted-foreground">Carrier:</span>
-              <Input
-                type="number"
-                value={section.endCarrier ?? ''}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  onUpdate('endCarrier', val === '' ? undefined : parseFloat(val) || section.carrier);
-                }}
-                min={20}
-                max={500}
-                placeholder={String(section.carrier)}
-                className="h-7 w-14 bg-void border-primary/30 text-center font-mono text-xs"
-              />
-              <span className="text-[10px] text-muted-foreground">Hz</span>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const next = !rampEnabled;
+                onUpdate('rampEnabled', next);
+                if (next) {
+                  if (section.endCarrier === undefined) onUpdate('endCarrier', section.carrier);
+                  if (section.endBeat === undefined) onUpdate('endBeat', section.beat);
+                }
+              }}
+              className={`h-6 px-2 text-[10px] uppercase tracking-wider font-medium ${
+                rampEnabled ? 'text-primary bg-primary/10 hover:bg-primary/15' : 'text-muted-foreground hover:text-primary'
+              }`}
+              title={rampEnabled ? 'Disable ramp' : 'Enable ramp'}
+            >
+              {rampEnabled ? 'On' : 'Off'}
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                onUpdate('rampEnabled', true);
+                onUpdate('endCarrier', section.carrier);
+                onUpdate('endBeat', section.beat);
+              }}
+              className="h-6 px-2 text-[10px] text-muted-foreground hover:text-accent"
+              title="Reset ramp targets to current values"
+            >
+              Reset
+            </Button>
+
+            <div className={`flex items-center gap-3 ${!rampEnabled ? 'opacity-50' : ''}`}>
+              {/* End Carrier */}
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-muted-foreground">Carrier:</span>
+                <Input
+                  type="number"
+                  value={section.endCarrier ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    onUpdate('endCarrier', val === '' ? undefined : parseFloat(val) || section.carrier);
+                  }}
+                  min={20}
+                  max={500}
+                  placeholder={String(section.carrier)}
+                  disabled={!rampEnabled}
+                  className="h-7 w-[4.5rem] bg-void border-primary/30 text-center font-mono text-xs"
+                />
+                <span className="text-[10px] text-muted-foreground">Hz</span>
+              </div>
+
+              {/* End Beat */}
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-muted-foreground">Pulse:</span>
+                <Input
+                  type="number"
+                  value={section.endBeat ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    onUpdate('endBeat', val === '' ? undefined : parseFloat(val) || section.beat);
+                  }}
+                  min={0.5}
+                  max={100}
+                  step={0.1}
+                  placeholder={String(section.beat)}
+                  disabled={!rampEnabled}
+                  className="h-7 w-[4.5rem] bg-void border-accent/30 text-center font-mono text-xs text-accent"
+                />
+                <span className="text-[10px] text-muted-foreground">Hz</span>
+              </div>
             </div>
 
-            {/* End Beat */}
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] text-muted-foreground">Pulse:</span>
-              <Input
-                type="number"
-                value={section.endBeat ?? ''}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  onUpdate('endBeat', val === '' ? undefined : parseFloat(val) || section.beat);
-                }}
-                min={0.5}
-                max={100}
-                step={0.1}
-                placeholder={String(section.beat)}
-                className="h-7 w-14 bg-void border-accent/30 text-center font-mono text-xs text-accent"
-              />
-              <span className="text-[10px] text-muted-foreground">Hz</span>
-            </div>
-
-            {hasRamping && (
+            {hasRampTargets && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => {
+                  onUpdate('rampEnabled', false);
                   onUpdate('endCarrier', undefined);
                   onUpdate('endBeat', undefined);
                 }}
                 className="h-6 px-2 text-[10px] text-muted-foreground hover:text-accent"
+                title="Clear ramp targets"
               >
                 Clear
               </Button>
@@ -346,19 +386,59 @@ export function SectionRow({
 
         {/* Parameters grid */}
         <div className="grid grid-cols-2 gap-2">
-          {/* Carrier */}
-          <div className="flex items-center gap-1">
-            <span className="text-[10px] uppercase text-muted-foreground w-12">Carrier</span>
-            <Input
-              type="number"
-              value={section.carrier}
-              onChange={(e) => onUpdate('carrier', parseFloat(e.target.value) || 100)}
-              min={20}
-              max={500}
-              className="h-7 w-14 bg-void border-border text-center font-mono text-xs"
-            />
-            <span className="text-[10px] text-muted-foreground">Hz</span>
+          {/* Ramp controls */}
+          <div className="col-span-2 flex items-center justify-between gap-2">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+              <ArrowRight className="h-3 w-3" />
+              Ramp
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const next = !rampEnabled;
+                  onUpdate('rampEnabled', next);
+                  if (next) {
+                    if (section.endCarrier === undefined) onUpdate('endCarrier', section.carrier);
+                    if (section.endBeat === undefined) onUpdate('endBeat', section.beat);
+                  }
+                }}
+                className={`h-6 px-2 text-[10px] uppercase tracking-wider font-medium ${
+                  rampEnabled ? 'text-primary bg-primary/10' : 'text-muted-foreground'
+                }`}
+              >
+                {rampEnabled ? 'On' : 'Off'}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  onUpdate('rampEnabled', true);
+                  onUpdate('endCarrier', section.carrier);
+                  onUpdate('endBeat', section.beat);
+                }}
+                className="h-6 px-2 text-[10px] text-muted-foreground hover:text-accent"
+              >
+                Reset
+              </Button>
+              {hasRampTargets && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    onUpdate('rampEnabled', false);
+                    onUpdate('endCarrier', undefined);
+                    onUpdate('endBeat', undefined);
+                  }}
+                  className="h-6 px-2 text-[10px] text-muted-foreground hover:text-accent"
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
           </div>
+
 
           {/* End Carrier */}
           <div className="flex items-center gap-1">
@@ -373,7 +453,7 @@ export function SectionRow({
               min={20}
               max={500}
               placeholder={String(section.carrier)}
-              className="h-7 w-14 bg-void border-primary/30 text-center font-mono text-xs"
+              className="h-7 w-[4.5rem] bg-void border-primary/30 text-center font-mono text-xs"
             />
             <span className="text-[10px] text-muted-foreground">Hz</span>
           </div>
@@ -388,7 +468,7 @@ export function SectionRow({
               min={0.5}
               max={100}
               step={0.1}
-              className="h-7 w-14 bg-void border-accent/50 text-center font-mono text-xs text-accent"
+              className="h-7 w-[4.5rem] bg-void border-accent/50 text-center font-mono text-xs text-accent"
             />
             <span className="text-[10px] text-muted-foreground">Hz</span>
           </div>
@@ -407,7 +487,7 @@ export function SectionRow({
               max={100}
               step={0.1}
               placeholder={String(section.beat)}
-              className="h-7 w-14 bg-void border-accent/30 text-center font-mono text-xs text-accent"
+              className="h-7 w-[4.5rem] bg-void border-accent/30 text-center font-mono text-xs text-accent"
             />
             <span className="text-[10px] text-muted-foreground">Hz</span>
           </div>

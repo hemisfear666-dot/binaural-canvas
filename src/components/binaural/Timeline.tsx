@@ -95,7 +95,7 @@ export function Timeline({
               onChange={(e) => onBpmChange(parseInt(e.target.value) || 120)}
               min={20}
               max={300}
-              className="h-6 w-12 bg-void border-border text-center font-mono text-xs"
+              className="h-6 w-16 bg-void border-border text-center font-mono text-xs"
             />
           </div>
           <div className="w-px h-4 bg-border mx-1" />
