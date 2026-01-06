@@ -73,6 +73,7 @@ export function useAudioEngine(
     cleanupNodes(activeNodesRef.current);
     activeNodesRef.current = [];
     scheduledGainsRef.current = [];
+    activeOscillatorsRef.current.clear();
   }, [cleanupNodes]);
 
   const cleanupTestNodes = useCallback(() => {
@@ -97,6 +98,15 @@ export function useAudioEngine(
     const hasTargets = section.endCarrier !== undefined || section.endBeat !== undefined;
     return section.rampEnabled ?? hasTargets;
   }, []);
+
+  // Track active oscillators by section ID for live updates
+  const activeOscillatorsRef = useRef<Map<string, {
+    oscL?: OscillatorNode;
+    oscR?: OscillatorNode;
+    osc?: OscillatorNode;
+    lfo?: OscillatorNode;
+    endTime: number;
+  }>>(new Map());
 
   const playTone = useCallback(
     (
@@ -180,6 +190,11 @@ export function useAudioEngine(
         lfo.stop(endTime);
 
         nodesToTrack.push(osc, lfo, amp, lfoGain, sectionGain);
+        
+        // Track oscillators for live updates
+        if (!opts.isTest) {
+          activeOscillatorsRef.current.set(opts.sectionId, { osc, lfo, endTime });
+        }
       } else {
         const oscL = ctx.createOscillator();
         const oscR = ctx.createOscillator();
@@ -226,6 +241,11 @@ export function useAudioEngine(
         oscR.stop(endTime);
 
         nodesToTrack.push(oscL, oscR, panL, panR, sectionGain);
+        
+        // Track oscillators for live updates
+        if (!opts.isTest) {
+          activeOscillatorsRef.current.set(opts.sectionId, { oscL, oscR, endTime });
+        }
       }
     },
     [createLowPassFilter, isIsochronic, waveform]
@@ -297,6 +317,63 @@ export function useAudioEngine(
       scheduled.gain.gain.setValueAtTime(s.muted ? 0 : s.volume, t);
     }
   }, [sections, state.playbackState]);
+
+  // Live ramp parameter updates while playing (dynamic ramp activation/changes)
+  useEffect(() => {
+    if (state.playbackState !== 'playing' || !audioCtxRef.current) return;
+
+    const ctx = audioCtxRef.current;
+    const byId = new Map(sections.map((s) => [s.id, s] as const));
+    const now = ctx.currentTime;
+
+    for (const [sectionId, oscData] of activeOscillatorsRef.current.entries()) {
+      const section = byId.get(sectionId);
+      if (!section) continue;
+      if (now > oscData.endTime) continue;
+
+      const rampEnabled = getRampEnabled(section);
+      const remainingTime = oscData.endTime - now;
+
+      if (isIsochronic) {
+        // Isochronic mode: single osc + lfo
+        if (oscData.osc && oscData.lfo) {
+          const targetCarrier = rampEnabled && section.endCarrier !== undefined ? section.endCarrier : section.carrier;
+          const targetBeat = rampEnabled && section.endBeat !== undefined ? section.endBeat : section.beat;
+
+          oscData.osc.frequency.cancelScheduledValues(now);
+          oscData.osc.frequency.setValueAtTime(oscData.osc.frequency.value, now);
+          if (rampEnabled && section.endCarrier !== undefined) {
+            oscData.osc.frequency.linearRampToValueAtTime(targetCarrier, now + remainingTime);
+          }
+
+          oscData.lfo.frequency.cancelScheduledValues(now);
+          oscData.lfo.frequency.setValueAtTime(oscData.lfo.frequency.value, now);
+          if (rampEnabled && section.endBeat !== undefined) {
+            oscData.lfo.frequency.linearRampToValueAtTime(targetBeat, now + remainingTime);
+          }
+        }
+      } else {
+        // Binaural mode: left + right oscillators
+        if (oscData.oscL && oscData.oscR) {
+          const targetCarrier = rampEnabled && section.endCarrier !== undefined ? section.endCarrier : section.carrier;
+          const targetBeat = rampEnabled && section.endBeat !== undefined ? section.endBeat : section.beat;
+
+          const targetLeftFreq = targetCarrier - targetBeat / 2;
+          const targetRightFreq = targetCarrier + targetBeat / 2;
+
+          oscData.oscL.frequency.cancelScheduledValues(now);
+          oscData.oscL.frequency.setValueAtTime(oscData.oscL.frequency.value, now);
+          oscData.oscR.frequency.cancelScheduledValues(now);
+          oscData.oscR.frequency.setValueAtTime(oscData.oscR.frequency.value, now);
+
+          if (rampEnabled && (section.endCarrier !== undefined || section.endBeat !== undefined)) {
+            oscData.oscL.frequency.linearRampToValueAtTime(targetLeftFreq, now + remainingTime);
+            oscData.oscR.frequency.linearRampToValueAtTime(targetRightFreq, now + remainingTime);
+          }
+        }
+      }
+    }
+  }, [sections, state.playbackState, isIsochronic, getRampEnabled]);
 
   const play = useCallback(
     (fromTime: number = 0) => {

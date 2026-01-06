@@ -19,16 +19,78 @@ export function useAmbiencePlayer(
   enabled: boolean,
   ambienceType: AmbienceType
 ) {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const currentTypeRef = useRef<AmbienceType>('none');
-  const connectedRef = useRef(false);
+  // Separate refs for main playback vs preview
+  const mainAudioRef = useRef<HTMLAudioElement | null>(null);
+  const mainSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const mainConnectedRef = useRef(false);
+  const mainTypeRef = useRef<AmbienceType>('none');
 
-  const stopPreview = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const previewSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const previewConnectedRef = useRef(false);
+  const previewTypeRef = useRef<AmbienceType>('none');
+
+  const isPreviewingRef = useRef(false);
+
+  // Play main (tied to track playback)
+  const startMain = useCallback(
+    (type: AmbienceType) => {
+      if (type === 'none') return;
+      const url = AMBIENCE_URLS[type];
+      if (!url) return;
+
+      const ctx = ensureAudioContext();
+      const dest = getDestination();
+
+      if (!mainAudioRef.current || mainTypeRef.current !== type) {
+        if (mainAudioRef.current) {
+          mainAudioRef.current.pause();
+          mainAudioRef.current.src = '';
+        }
+        if (mainSourceRef.current) {
+          try { mainSourceRef.current.disconnect(); } catch {}
+          mainSourceRef.current = null;
+          mainConnectedRef.current = false;
+        }
+
+        const el = new Audio();
+        el.crossOrigin = 'anonymous';
+        el.loop = true;
+        el.preload = 'auto';
+        el.src = url;
+        mainAudioRef.current = el;
+        mainTypeRef.current = type;
+      }
+
+      if (!mainConnectedRef.current && mainAudioRef.current) {
+        try {
+          mainSourceRef.current = ctx.createMediaElementSource(mainAudioRef.current);
+          mainSourceRef.current.connect(dest);
+          mainConnectedRef.current = true;
+        } catch {
+          mainConnectedRef.current = true;
+        }
+      }
+
+      mainAudioRef.current?.play().catch((e) => console.log('Ambience autoplay blocked:', e));
+    },
+    [ensureAudioContext, getDestination]
+  );
+
+  const stopMain = useCallback(() => {
+    if (mainAudioRef.current) {
+      mainAudioRef.current.pause();
+      mainAudioRef.current.currentTime = 0;
     }
+  }, []);
+
+  // Preview (independent from track playback)
+  const stopPreview = useCallback(() => {
+    if (previewAudioRef.current) {
+      previewAudioRef.current.pause();
+      previewAudioRef.current.currentTime = 0;
+    }
+    isPreviewingRef.current = false;
   }, []);
 
   const startPreview = useCallback(
@@ -42,20 +104,15 @@ export function useAmbiencePlayer(
       const ctx = ensureAudioContext();
       const dest = getDestination();
 
-      // Build/replace element if type changed
-      if (!audioRef.current || currentTypeRef.current !== typeToPlay) {
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.src = '';
+      if (!previewAudioRef.current || previewTypeRef.current !== typeToPlay) {
+        if (previewAudioRef.current) {
+          previewAudioRef.current.pause();
+          previewAudioRef.current.src = '';
         }
-        if (sourceRef.current) {
-          try {
-            sourceRef.current.disconnect();
-          } catch {
-            // ignore
-          }
-          sourceRef.current = null;
-          connectedRef.current = false;
+        if (previewSourceRef.current) {
+          try { previewSourceRef.current.disconnect(); } catch {}
+          previewSourceRef.current = null;
+          previewConnectedRef.current = false;
         }
 
         const el = new Audio();
@@ -63,49 +120,52 @@ export function useAmbiencePlayer(
         el.loop = true;
         el.preload = 'auto';
         el.src = url;
-        audioRef.current = el;
-        currentTypeRef.current = typeToPlay;
+        previewAudioRef.current = el;
+        previewTypeRef.current = typeToPlay;
       }
 
-      if (!connectedRef.current && audioRef.current) {
+      if (!previewConnectedRef.current && previewAudioRef.current) {
         try {
-          sourceRef.current = ctx.createMediaElementSource(audioRef.current);
-          sourceRef.current.connect(dest);
-          connectedRef.current = true;
+          previewSourceRef.current = ctx.createMediaElementSource(previewAudioRef.current);
+          previewSourceRef.current.connect(dest);
+          previewConnectedRef.current = true;
         } catch {
-          // If already connected, ignore.
-          connectedRef.current = true;
+          previewConnectedRef.current = true;
         }
       }
 
-      audioRef.current
-        ?.play()
-        .catch((e) => console.log('Ambience autoplay blocked:', e));
+      previewAudioRef.current?.play().catch((e) => console.log('Ambience preview blocked:', e));
+      isPreviewingRef.current = true;
     },
     [ambienceType, ensureAudioContext, getDestination]
   );
 
+  // Main playback tied to enabled prop
   useEffect(() => {
-    if (enabled && ambienceType !== 'none') startPreview(ambienceType);
-    else stopPreview();
-  }, [ambienceType, enabled, startPreview, stopPreview]);
+    if (enabled && ambienceType !== 'none') {
+      startMain(ambienceType);
+    } else {
+      stopMain();
+    }
+  }, [ambienceType, enabled, startMain, stopMain]);
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
+      stopMain();
       stopPreview();
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = '';
+      if (mainAudioRef.current) {
+        mainAudioRef.current.pause();
+        mainAudioRef.current.src = '';
       }
-      if (sourceRef.current) {
-        try {
-          sourceRef.current.disconnect();
-        } catch {
-          // ignore
-        }
+      if (previewAudioRef.current) {
+        previewAudioRef.current.pause();
+        previewAudioRef.current.src = '';
       }
+      try { mainSourceRef.current?.disconnect(); } catch {}
+      try { previewSourceRef.current?.disconnect(); } catch {}
     };
-  }, [stopPreview]);
+  }, [stopMain, stopPreview]);
 
   return { startPreview, stopPreview };
 }

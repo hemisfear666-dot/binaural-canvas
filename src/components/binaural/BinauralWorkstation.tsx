@@ -128,7 +128,7 @@ export function BinauralWorkstation() {
     testingIndex,
     play,
     pause,
-    stop,
+    stop: engineStop,
     testSection,
     stopTest,
     seekTo,
@@ -140,6 +140,14 @@ export function BinauralWorkstation() {
     mixer.ensure,
     mixer.getToneInput
   );
+
+  // Wrap stop to also kill reverb tail immediately
+  const stop = useCallback(() => {
+    engineStop();
+    mixer.killAll();
+    // Restore mixer volumes after a brief moment so it's ready for next play
+    setTimeout(() => mixer.restore(), 50);
+  }, [engineStop, mixer]);
 
   // Background audio layers with preview support (routed into the shared mixer)
   const { startPreview: startNoisePreview, stopPreview: stopNoisePreview } = useNoiseGenerator(

@@ -138,12 +138,13 @@ export function AudioLayers({
             </Label>
           </div>
           <div className="flex items-center gap-2">
-            {onPreviewAmbience && ambience.type !== 'none' && (
+            {onPreviewAmbience && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={handleAmbiencePreview}
-                className={`h-6 w-6 ${previewingAmbience ? 'text-accent bg-accent/20' : 'text-muted-foreground hover:text-primary'}`}
+                disabled={ambience.type === 'none' && !previewingAmbience}
+                className={`h-6 w-6 ${previewingAmbience ? 'text-accent bg-accent/20' : 'text-muted-foreground hover:text-primary'} disabled:opacity-30`}
                 title={previewingAmbience ? 'Stop preview' : 'Preview soundscape'}
               >
                 {previewingAmbience ? <Square className="h-3 w-3" /> : <Play className="h-3 w-3" />}

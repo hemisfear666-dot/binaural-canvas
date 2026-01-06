@@ -203,10 +203,51 @@ export function useAudioMixer(
     applyVolumesAndFx();
   }, [applyVolumesAndFx, masterVolume, noiseVolume, ambienceVolume, effects]);
 
+  // Kill all sound immediately (including reverb tail)
+  const killAll = useCallback(() => {
+    if (!ctxRef.current) return;
+    const ctx = ctxRef.current;
+
+    // Zero out all buses immediately
+    toneBusRef.current?.gain.setValueAtTime(0, ctx.currentTime);
+    noiseBusRef.current?.gain.setValueAtTime(0, ctx.currentTime);
+    ambienceBusRef.current?.gain.setValueAtTime(0, ctx.currentTime);
+
+    // Zero out reverb wet signal to kill tail
+    wetRef.current?.gain.setValueAtTime(0, ctx.currentTime);
+    reverbSendRef.current?.gain.setValueAtTime(0, ctx.currentTime);
+
+    // Stop autopan
+    if (autoPanOscRef.current) {
+      try {
+        autoPanOscRef.current.stop();
+        autoPanOscRef.current.disconnect();
+      } catch {
+        // ignore
+      }
+      autoPanOscRef.current = null;
+    }
+    if (autoPanGainRef.current) {
+      try {
+        autoPanGainRef.current.disconnect();
+      } catch {
+        // ignore
+      }
+      autoPanGainRef.current = null;
+    }
+  }, []);
+
+  // Restore volumes after killAll
+  const restore = useCallback(() => {
+    applyVolumesAndFx();
+  }, [applyVolumesAndFx]);
+
   return {
     ensure,
     getToneInput,
     getNoiseInput,
     getAmbienceInput,
+    killAll,
+    restore,
   };
 }
