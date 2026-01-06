@@ -105,8 +105,17 @@ export function useAudioEngine(
     oscR?: OscillatorNode;
     osc?: OscillatorNode;
     lfo?: OscillatorNode;
+    filterL?: BiquadFilterNode;
+    filterR?: BiquadFilterNode;
+    filter?: BiquadFilterNode;
     endTime: number;
   }>>(new Map());
+
+  // Store waveform ref for live updates
+  const waveformRef = useRef(waveform);
+  useEffect(() => {
+    waveformRef.current = waveform;
+  }, [waveform]);
 
   const playTone = useCallback(
     (
@@ -318,7 +327,7 @@ export function useAudioEngine(
     }
   }, [sections, state.playbackState]);
 
-  // Live ramp parameter updates while playing (dynamic ramp activation/changes)
+  // Live ramp parameter + frequency + waveform updates while playing
   useEffect(() => {
     if (state.playbackState !== 'playing' || !audioCtxRef.current) return;
 
@@ -337,24 +346,40 @@ export function useAudioEngine(
       if (isIsochronic) {
         // Isochronic mode: single osc + lfo
         if (oscData.osc && oscData.lfo) {
+          // Live waveform change
+          if (oscData.osc.type !== waveform) {
+            oscData.osc.type = waveform;
+          }
+
           const targetCarrier = rampEnabled && section.endCarrier !== undefined ? section.endCarrier : section.carrier;
           const targetBeat = rampEnabled && section.endBeat !== undefined ? section.endBeat : section.beat;
 
+          // If ramp is enabled, set up the ramp from current value to target
+          // If ramp is disabled, immediately set to section's current carrier/beat
           oscData.osc.frequency.cancelScheduledValues(now);
-          oscData.osc.frequency.setValueAtTime(oscData.osc.frequency.value, now);
-          if (rampEnabled && section.endCarrier !== undefined) {
-            oscData.osc.frequency.linearRampToValueAtTime(targetCarrier, now + remainingTime);
-          }
-
           oscData.lfo.frequency.cancelScheduledValues(now);
-          oscData.lfo.frequency.setValueAtTime(oscData.lfo.frequency.value, now);
-          if (rampEnabled && section.endBeat !== undefined) {
+
+          if (rampEnabled && (section.endCarrier !== undefined || section.endBeat !== undefined)) {
+            oscData.osc.frequency.setValueAtTime(oscData.osc.frequency.value, now);
+            oscData.osc.frequency.linearRampToValueAtTime(targetCarrier, now + remainingTime);
+
+            oscData.lfo.frequency.setValueAtTime(oscData.lfo.frequency.value, now);
             oscData.lfo.frequency.linearRampToValueAtTime(targetBeat, now + remainingTime);
+          } else {
+            // No ramp - jump to current section frequency immediately
+            oscData.osc.frequency.setValueAtTime(section.carrier, now);
+            oscData.lfo.frequency.setValueAtTime(section.beat, now);
           }
         }
       } else {
         // Binaural mode: left + right oscillators
         if (oscData.oscL && oscData.oscR) {
+          // Live waveform change
+          if (oscData.oscL.type !== waveform) {
+            oscData.oscL.type = waveform;
+            oscData.oscR.type = waveform;
+          }
+
           const targetCarrier = rampEnabled && section.endCarrier !== undefined ? section.endCarrier : section.carrier;
           const targetBeat = rampEnabled && section.endBeat !== undefined ? section.endBeat : section.beat;
 
@@ -362,18 +387,25 @@ export function useAudioEngine(
           const targetRightFreq = targetCarrier + targetBeat / 2;
 
           oscData.oscL.frequency.cancelScheduledValues(now);
-          oscData.oscL.frequency.setValueAtTime(oscData.oscL.frequency.value, now);
           oscData.oscR.frequency.cancelScheduledValues(now);
-          oscData.oscR.frequency.setValueAtTime(oscData.oscR.frequency.value, now);
 
           if (rampEnabled && (section.endCarrier !== undefined || section.endBeat !== undefined)) {
+            oscData.oscL.frequency.setValueAtTime(oscData.oscL.frequency.value, now);
+            oscData.oscR.frequency.setValueAtTime(oscData.oscR.frequency.value, now);
+
             oscData.oscL.frequency.linearRampToValueAtTime(targetLeftFreq, now + remainingTime);
             oscData.oscR.frequency.linearRampToValueAtTime(targetRightFreq, now + remainingTime);
+          } else {
+            // No ramp - jump to current section frequency immediately
+            const leftFreq = section.carrier - section.beat / 2;
+            const rightFreq = section.carrier + section.beat / 2;
+            oscData.oscL.frequency.setValueAtTime(leftFreq, now);
+            oscData.oscR.frequency.setValueAtTime(rightFreq, now);
           }
         }
       }
     }
-  }, [sections, state.playbackState, isIsochronic, getRampEnabled]);
+  }, [sections, state.playbackState, isIsochronic, waveform, getRampEnabled]);
 
   const play = useCallback(
     (fromTime: number = 0) => {
