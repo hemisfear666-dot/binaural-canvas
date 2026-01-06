@@ -5,12 +5,12 @@ type EnsureAudioContext = () => AudioContext;
 
 type GetDestination = () => AudioNode;
 
-// NOTE: user reported rain/drone swapped; these are now corrected.
+// Reliable public-domain / CORS-enabled audio URLs
 const AMBIENCE_URLS: Record<AmbienceType, string | null> = {
   none: null,
-  rain: 'https://assets.mixkit.co/active_storage/sfx/123/123-preview.mp3',
-  forest: 'https://assets.mixkit.co/active_storage/sfx/1210/1210-preview.mp3',
-  drone: 'https://assets.mixkit.co/active_storage/sfx/212/212-preview.mp3',
+  rain: 'https://cdn.pixabay.com/audio/2022/05/13/audio_257112ce99.mp3',
+  forest: 'https://cdn.pixabay.com/audio/2022/02/23/audio_ea70ad08cc.mp3',
+  drone: 'https://cdn.pixabay.com/audio/2024/11/29/audio_a7ef6f0b8b.mp3',
 };
 
 export function useAmbiencePlayer(
