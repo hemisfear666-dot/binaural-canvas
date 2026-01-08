@@ -2,7 +2,7 @@ import { useRef, useCallback, useMemo } from 'react';
 import { Section } from '@/types/binaural';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2, Undo2, Redo2 } from 'lucide-react';
 
 interface TimelineProps {
   sections: Section[];
@@ -16,6 +16,10 @@ interface TimelineProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFitToView: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
 }
 
 export function Timeline({
@@ -30,6 +34,10 @@ export function Timeline({
   onZoomIn,
   onZoomOut,
   onFitToView,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
 }: TimelineProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -86,6 +94,32 @@ export function Timeline({
           Timeline
         </span>
         <div className="flex items-center gap-1 flex-wrap justify-end">
+          {/* Undo/Redo */}
+          {onUndo && onRedo && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onUndo}
+                disabled={!canUndo}
+                className="h-6 w-6 text-muted-foreground hover:text-accent hover:bg-accent/10 disabled:opacity-30"
+                title="Undo (Ctrl+Z)"
+              >
+                <Undo2 className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onRedo}
+                disabled={!canRedo}
+                className="h-6 w-6 text-muted-foreground hover:text-accent hover:bg-accent/10 disabled:opacity-30"
+                title="Redo (Ctrl+Shift+Z)"
+              >
+                <Redo2 className="h-3 w-3" />
+              </Button>
+              <div className="w-px h-4 bg-border mx-1" />
+            </>
+          )}
           {/* BPM Control */}
           <div className="flex items-center gap-1 mr-2">
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">BPM</span>
@@ -95,7 +129,7 @@ export function Timeline({
               onChange={(e) => onBpmChange(parseInt(e.target.value) || 120)}
               min={20}
               max={300}
-              className="h-6 w-16 bg-void border-border text-center font-mono text-xs"
+              className="h-6 w-[4.5rem] bg-void border-border text-center font-mono text-xs"
             />
           </div>
           <div className="w-px h-4 bg-border mx-1" />

@@ -5,12 +5,12 @@ type EnsureAudioContext = () => AudioContext;
 
 type GetDestination = () => AudioNode;
 
-// Reliable public-domain / CORS-enabled audio URLs
+// Reliable public-domain / CORS-enabled audio URLs (freesound.org CDN)
 const AMBIENCE_URLS: Record<AmbienceType, string | null> = {
   none: null,
-  rain: 'https://cdn.pixabay.com/audio/2022/05/13/audio_257112ce99.mp3',
-  forest: 'https://cdn.pixabay.com/audio/2022/02/23/audio_ea70ad08cc.mp3',
-  drone: 'https://cdn.pixabay.com/audio/2024/11/29/audio_a7ef6f0b8b.mp3',
+  rain: 'https://cdn.freesound.org/previews/531/531947_6265505-lq.mp3',
+  forest: 'https://cdn.freesound.org/previews/462/462087_5121236-lq.mp3',
+  drone: 'https://cdn.freesound.org/previews/186/186942_2594536-lq.mp3',
 };
 
 export function useAmbiencePlayer(
