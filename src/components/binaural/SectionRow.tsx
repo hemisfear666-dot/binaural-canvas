@@ -79,7 +79,7 @@ export function SectionRow({
         style={{ animationDelay: `${index * 50}ms` }}
       >
         {/* Main Row */}
-        <div className="grid grid-cols-[24px_40px_2fr_90px_90px_90px_120px_auto] gap-4 items-center">
+        <div className="grid grid-cols-[24px_40px_2fr_90px_90px_90px_120px_minmax(0,auto)] gap-4 items-center">
           {/* Checkbox */}
           <div className="flex items-center justify-center">
             <Checkbox
@@ -170,12 +170,12 @@ export function SectionRow({
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0">
             <Button
               variant="ghost"
               size="icon"
               onClick={onEditClick}
-              className={`h-7 w-7 ${isEditing ? 'text-primary bg-primary/20' : 'text-muted-foreground hover:text-primary hover:bg-primary/10'}`}
+              className={`h-7 w-7 shrink-0 ${isEditing ? 'text-primary bg-primary/20' : 'text-muted-foreground hover:text-primary hover:bg-primary/10'}`}
               title="Edit with generator"
             >
               <Edit3 className="h-3 w-3" />
@@ -185,7 +185,7 @@ export function SectionRow({
                 variant="ghost"
                 size="sm"
                 onClick={onStopTest}
-                className="text-accent hover:text-accent hover:bg-accent/10 text-xs uppercase tracking-wider font-medium"
+                className="shrink-0 text-accent hover:text-accent hover:bg-accent/10 text-xs uppercase tracking-wider font-medium"
               >
                 <Square className="h-3 w-3 mr-1" />
                 Stop
@@ -195,7 +195,7 @@ export function SectionRow({
                 variant="ghost"
                 size="sm"
                 onClick={onTest}
-                className="text-primary hover:text-primary-glow hover:bg-primary/10 text-xs uppercase tracking-wider font-medium"
+                className="shrink-0 text-primary hover:text-primary-glow hover:bg-primary/10 text-xs uppercase tracking-wider font-medium"
               >
                 <Play className="h-3 w-3 mr-1" />
                 Test
@@ -205,7 +205,7 @@ export function SectionRow({
               variant="ghost"
               size="icon"
               onClick={onDelete}
-              className="h-7 w-7 text-muted-foreground hover:text-accent hover:bg-accent/10"
+              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-accent hover:bg-accent/10"
             >
               <Trash2 className="h-4 w-4" />
             </Button>

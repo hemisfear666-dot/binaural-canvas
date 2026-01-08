@@ -18,7 +18,7 @@ import { AudioLayers } from './AudioLayers';
 import { WaveformSelector } from './WaveformSelector';
 import { EffectsRack } from './EffectsRack';
 import { Button } from '@/components/ui/button';
-import { Undo2, Redo2, Copy, Trash2, CheckSquare, Square } from 'lucide-react';
+import { Copy, Trash2, CheckSquare, Square } from 'lucide-react';
 import { toast } from 'sonner';
 import logo from '@/assets/logo.png';
 
@@ -226,7 +226,7 @@ export function BinauralWorkstation() {
 
   const handleTestSection = useCallback(
     (index: number) => {
-      testSection(index, 5);
+      testSection(index);
     },
     [testSection]
   );
@@ -440,30 +440,7 @@ export function BinauralWorkstation() {
               onWaveformChange={handleWaveformChange}
             />
           </div>
-          <div className="flex items-center gap-0.5 md:gap-1">
-            {/* Undo/Redo */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={undo}
-              disabled={!canUndo}
-              className="h-7 w-7 md:h-8 md:w-8 text-muted-foreground hover:text-accent hover:bg-accent/10 disabled:opacity-30"
-              title="Undo (Ctrl+Z)"
-            >
-              <Undo2 className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={redo}
-              disabled={!canRedo}
-              className="h-7 w-7 md:h-8 md:w-8 text-muted-foreground hover:text-accent hover:bg-accent/10 disabled:opacity-30"
-              title="Redo (Ctrl+Shift+Z)"
-            >
-              <Redo2 className="h-3.5 w-3.5" />
-            </Button>
-
-            <div className="w-px h-5 bg-border mx-0.5 md:mx-1" />
+          <div className="flex items-center gap-0.5 md:gap-1 flex-wrap">
 
             {/* Selection actions */}
             <Button
@@ -541,6 +518,10 @@ export function BinauralWorkstation() {
           onZoomIn={handleZoomIn}
           onZoomOut={handleZoomOut}
           onFitToView={handleFitToView}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={undo}
+          onRedo={redo}
         />
 
         {/* Section Editor */}
