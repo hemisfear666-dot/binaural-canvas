@@ -5,13 +5,163 @@ type EnsureAudioContext = () => AudioContext;
 
 type GetDestination = () => AudioNode;
 
-// Reliable public-domain / CORS-enabled audio URLs (freesound.org CDN)
-const AMBIENCE_URLS: Record<AmbienceType, string | null> = {
-  none: null,
-  rain: 'https://cdn.freesound.org/previews/531/531947_6265505-lq.mp3',
-  forest: 'https://cdn.freesound.org/previews/462/462087_5121236-lq.mp3',
-  drone: 'https://cdn.freesound.org/previews/186/186942_2594536-lq.mp3',
+type RunningAmbience = {
+  type: AmbienceType;
+  // nodes we may want to stop/disconnect
+  sources: (AudioScheduledSourceNode | OscillatorNode)[];
+  nodes: AudioNode[];
+  stop: () => void;
 };
+
+function createNoiseBuffer(ctx: AudioContext, seconds: number) {
+  const length = Math.max(1, Math.floor(ctx.sampleRate * seconds));
+  const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+  return buffer;
+}
+
+function createAmbience(ctx: AudioContext, type: AmbienceType, destination: AudioNode): RunningAmbience | null {
+  if (type === 'none') return null;
+
+  const sources: (AudioScheduledSourceNode | OscillatorNode)[] = [];
+  const nodes: AudioNode[] = [];
+  const out = ctx.createGain();
+  out.gain.value = 1;
+  nodes.push(out);
+
+  const now = ctx.currentTime;
+
+  if (type === 'rain') {
+    // Wideband noise + bandpass = "rain" texture
+    const src = ctx.createBufferSource();
+    src.buffer = createNoiseBuffer(ctx, 2.5);
+    src.loop = true;
+
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 350;
+
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 1400;
+    bp.Q.value = 0.7;
+
+    const gain = ctx.createGain();
+    gain.gain.value = 0.22;
+
+    src.connect(hp);
+    hp.connect(bp);
+    bp.connect(gain);
+    gain.connect(out);
+
+    sources.push(src);
+    nodes.push(hp, bp, gain);
+    src.start(now);
+  }
+
+  if (type === 'forest') {
+    // Pink-ish noise (lowpass) + subtle slow tremolo
+    const src = ctx.createBufferSource();
+    src.buffer = createNoiseBuffer(ctx, 3.0);
+    src.loop = true;
+
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 900;
+    lp.Q.value = 0.3;
+
+    const gain = ctx.createGain();
+    gain.gain.value = 0.18;
+
+    const lfo = ctx.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = 0.08;
+
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 0.06;
+
+    lfo.connect(lfoGain);
+    lfoGain.connect(gain.gain);
+
+    src.connect(lp);
+    lp.connect(gain);
+    gain.connect(out);
+
+    sources.push(src, lfo);
+    nodes.push(lp, gain, lfoGain);
+
+    src.start(now);
+    lfo.start(now);
+  }
+
+  if (type === 'drone') {
+    // Simple warm drone (two detuned sines) + subtle movement
+    const gain = ctx.createGain();
+    gain.gain.value = 0.22;
+
+    const oscA = ctx.createOscillator();
+    oscA.type = 'sine';
+    oscA.frequency.value = 74;
+
+    const oscB = ctx.createOscillator();
+    oscB.type = 'sine';
+    oscB.frequency.value = 74.6;
+
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 800;
+    lp.Q.value = 0.5;
+
+    const drift = ctx.createOscillator();
+    drift.type = 'sine';
+    drift.frequency.value = 0.05;
+
+    const driftGain = ctx.createGain();
+    driftGain.gain.value = 6; // cents-ish effect via Hz offset at this range
+
+    drift.connect(driftGain);
+    driftGain.connect(oscB.frequency);
+
+    oscA.connect(lp);
+    oscB.connect(lp);
+    lp.connect(gain);
+    gain.connect(out);
+
+    sources.push(oscA, oscB, drift);
+    nodes.push(gain, lp, driftGain);
+
+    oscA.start(now);
+    oscB.start(now);
+    drift.start(now);
+  }
+
+  out.connect(destination);
+
+  const stop = () => {
+    for (const s of sources) {
+      try {
+        s.stop();
+      } catch {
+        // ignore
+      }
+    }
+    for (const n of nodes) {
+      try {
+        n.disconnect();
+      } catch {
+        // ignore
+      }
+    }
+    try {
+      out.disconnect();
+    } catch {
+      // ignore
+    }
+  };
+
+  return { type, sources, nodes, stop };
+}
 
 export function useAmbiencePlayer(
   ensureAudioContext: EnsureAudioContext,
@@ -19,125 +169,48 @@ export function useAmbiencePlayer(
   enabled: boolean,
   ambienceType: AmbienceType
 ) {
-  // Separate refs for main playback vs preview
-  const mainAudioRef = useRef<HTMLAudioElement | null>(null);
-  const mainSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const mainConnectedRef = useRef(false);
-  const mainTypeRef = useRef<AmbienceType>('none');
+  const mainRef = useRef<RunningAmbience | null>(null);
+  const previewRef = useRef<RunningAmbience | null>(null);
 
-  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
-  const previewSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const previewConnectedRef = useRef(false);
-  const previewTypeRef = useRef<AmbienceType>('none');
+  const stopMain = useCallback(() => {
+    if (mainRef.current) {
+      mainRef.current.stop();
+      mainRef.current = null;
+    }
+  }, []);
 
-  const isPreviewingRef = useRef(false);
+  const stopPreview = useCallback(() => {
+    if (previewRef.current) {
+      previewRef.current.stop();
+      previewRef.current = null;
+    }
+  }, []);
 
-  // Play main (tied to track playback)
   const startMain = useCallback(
     (type: AmbienceType) => {
       if (type === 'none') return;
-      const url = AMBIENCE_URLS[type];
-      if (!url) return;
-
       const ctx = ensureAudioContext();
       const dest = getDestination();
 
-      if (!mainAudioRef.current || mainTypeRef.current !== type) {
-        if (mainAudioRef.current) {
-          mainAudioRef.current.pause();
-          mainAudioRef.current.src = '';
-        }
-        if (mainSourceRef.current) {
-          try { mainSourceRef.current.disconnect(); } catch {}
-          mainSourceRef.current = null;
-          mainConnectedRef.current = false;
-        }
-
-        const el = new Audio();
-        el.crossOrigin = 'anonymous';
-        el.loop = true;
-        el.preload = 'auto';
-        el.src = url;
-        mainAudioRef.current = el;
-        mainTypeRef.current = type;
-      }
-
-      if (!mainConnectedRef.current && mainAudioRef.current) {
-        try {
-          mainSourceRef.current = ctx.createMediaElementSource(mainAudioRef.current);
-          mainSourceRef.current.connect(dest);
-          mainConnectedRef.current = true;
-        } catch {
-          mainConnectedRef.current = true;
-        }
-      }
-
-      mainAudioRef.current?.play().catch((e) => console.log('Ambience autoplay blocked:', e));
+      if (mainRef.current?.type === type) return;
+      stopMain();
+      mainRef.current = createAmbience(ctx, type, dest);
     },
-    [ensureAudioContext, getDestination]
+    [ensureAudioContext, getDestination, stopMain]
   );
-
-  const stopMain = useCallback(() => {
-    if (mainAudioRef.current) {
-      mainAudioRef.current.pause();
-      mainAudioRef.current.currentTime = 0;
-    }
-  }, []);
-
-  // Preview (independent from track playback)
-  const stopPreview = useCallback(() => {
-    if (previewAudioRef.current) {
-      previewAudioRef.current.pause();
-      previewAudioRef.current.currentTime = 0;
-    }
-    isPreviewingRef.current = false;
-  }, []);
 
   const startPreview = useCallback(
     (type?: AmbienceType) => {
       const typeToPlay = type ?? ambienceType;
       if (typeToPlay === 'none') return;
-
-      const url = AMBIENCE_URLS[typeToPlay];
-      if (!url) return;
-
       const ctx = ensureAudioContext();
       const dest = getDestination();
 
-      if (!previewAudioRef.current || previewTypeRef.current !== typeToPlay) {
-        if (previewAudioRef.current) {
-          previewAudioRef.current.pause();
-          previewAudioRef.current.src = '';
-        }
-        if (previewSourceRef.current) {
-          try { previewSourceRef.current.disconnect(); } catch {}
-          previewSourceRef.current = null;
-          previewConnectedRef.current = false;
-        }
-
-        const el = new Audio();
-        el.crossOrigin = 'anonymous';
-        el.loop = true;
-        el.preload = 'auto';
-        el.src = url;
-        previewAudioRef.current = el;
-        previewTypeRef.current = typeToPlay;
-      }
-
-      if (!previewConnectedRef.current && previewAudioRef.current) {
-        try {
-          previewSourceRef.current = ctx.createMediaElementSource(previewAudioRef.current);
-          previewSourceRef.current.connect(dest);
-          previewConnectedRef.current = true;
-        } catch {
-          previewConnectedRef.current = true;
-        }
-      }
-
-      previewAudioRef.current?.play().catch((e) => console.log('Ambience preview blocked:', e));
-      isPreviewingRef.current = true;
+      if (previewRef.current?.type === typeToPlay) return;
+      stopPreview();
+      previewRef.current = createAmbience(ctx, typeToPlay, dest);
     },
-    [ambienceType, ensureAudioContext, getDestination]
+    [ambienceType, ensureAudioContext, getDestination, stopPreview]
   );
 
   // Main playback tied to enabled prop
@@ -149,23 +222,14 @@ export function useAmbiencePlayer(
     }
   }, [ambienceType, enabled, startMain, stopMain]);
 
-  // Cleanup on unmount
+  // Cleanup
   useEffect(() => {
     return () => {
       stopMain();
       stopPreview();
-      if (mainAudioRef.current) {
-        mainAudioRef.current.pause();
-        mainAudioRef.current.src = '';
-      }
-      if (previewAudioRef.current) {
-        previewAudioRef.current.pause();
-        previewAudioRef.current.src = '';
-      }
-      try { mainSourceRef.current?.disconnect(); } catch {}
-      try { previewSourceRef.current?.disconnect(); } catch {}
     };
   }, [stopMain, stopPreview]);
 
   return { startPreview, stopPreview };
 }
+
