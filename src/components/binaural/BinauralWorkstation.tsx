@@ -64,20 +64,67 @@ const defaultTrack: Track = {
 
 // Load saved track from localStorage
 const loadSavedTrack = (): Track => {
+  const clamp01 = (v: unknown, fallback: number) => {
+    const n = typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+    return Math.max(0, Math.min(1, n));
+  };
+
+  const isWaveform = (v: unknown): v is WaveformType => v === 'sine' || v === 'triangle' || v === 'sawtooth';
+  const isNoiseType = (v: unknown): v is NoiseType => v === 'white' || v === 'pink' || v === 'brown';
+  const isAmbienceType = (v: unknown): v is AmbienceType => v === 'none' || v === 'rain' || v === 'forest' || v === 'drone';
+
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Validate the parsed data has the required structure
+
       if (parsed && parsed.sections && Array.isArray(parsed.sections)) {
-        // Ensure new fields have defaults for older saves
+        const parsedNoise = parsed.noise ?? {};
+        const parsedAmbience = parsed.ambience ?? {};
+        const parsedEffects = parsed.effects ?? {};
+
+        const noise: NoiseSettings = {
+          type: isNoiseType(parsedNoise.type) ? parsedNoise.type : defaultNoiseSettings.type,
+          volume: clamp01(parsedNoise.volume, defaultNoiseSettings.volume),
+          enabled: typeof parsedNoise.enabled === 'boolean' ? parsedNoise.enabled : defaultNoiseSettings.enabled,
+        };
+
+        const ambience: AmbienceSettings = {
+          type: isAmbienceType(parsedAmbience.type) ? parsedAmbience.type : defaultAmbienceSettings.type,
+          volume: clamp01(parsedAmbience.volume, defaultAmbienceSettings.volume),
+          enabled: typeof parsedAmbience.enabled === 'boolean' ? parsedAmbience.enabled : defaultAmbienceSettings.enabled,
+        };
+
+        const effects: EffectsSettings = {
+          reverb: {
+            enabled: typeof parsedEffects.reverb?.enabled === 'boolean' ? parsedEffects.reverb.enabled : defaultEffectsSettings.reverb.enabled,
+            amount: clamp01(parsedEffects.reverb?.amount, defaultEffectsSettings.reverb.amount),
+          },
+          lowpass: {
+            enabled: typeof parsedEffects.lowpass?.enabled === 'boolean' ? parsedEffects.lowpass.enabled : defaultEffectsSettings.lowpass.enabled,
+            frequency:
+              typeof parsedEffects.lowpass?.frequency === 'number' && Number.isFinite(parsedEffects.lowpass.frequency)
+                ? parsedEffects.lowpass.frequency
+                : defaultEffectsSettings.lowpass.frequency,
+          },
+          autoPan: {
+            enabled: typeof parsedEffects.autoPan?.enabled === 'boolean' ? parsedEffects.autoPan.enabled : defaultEffectsSettings.autoPan.enabled,
+            rate:
+              typeof parsedEffects.autoPan?.rate === 'number' && Number.isFinite(parsedEffects.autoPan.rate)
+                ? parsedEffects.autoPan.rate
+                : defaultEffectsSettings.autoPan.rate,
+            depth: clamp01(parsedEffects.autoPan?.depth, defaultEffectsSettings.autoPan.depth),
+          },
+        };
+
         return {
           ...defaultTrack,
           ...parsed,
-          noise: parsed.noise || defaultNoiseSettings,
-          ambience: parsed.ambience || defaultAmbienceSettings,
-          waveform: parsed.waveform || 'sine',
-          effects: parsed.effects || defaultEffectsSettings,
+          masterVolume: clamp01(parsed.masterVolume, defaultTrack.masterVolume),
+          waveform: isWaveform(parsed.waveform) ? parsed.waveform : defaultTrack.waveform,
+          noise,
+          ambience,
+          effects,
         } as Track;
       }
     }

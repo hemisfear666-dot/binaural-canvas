@@ -57,41 +57,53 @@ export function useAudioMixer(
     const ctx = ctxRef.current;
     const p = paramsRef.current;
 
+    const clamp01 = (v: unknown, fallback: number) => {
+      const n = typeof v === "number" && Number.isFinite(v) ? v : fallback;
+      return Math.max(0, Math.min(1, n));
+    };
+
     // Buses
-    toneBusRef.current?.gain.setValueAtTime(p.masterVolume, ctx.currentTime);
-    noiseBusRef.current?.gain.setValueAtTime(p.noiseVolume, ctx.currentTime);
-    ambienceBusRef.current?.gain.setValueAtTime(p.ambienceVolume, ctx.currentTime);
+    toneBusRef.current?.gain.setValueAtTime(clamp01(p.masterVolume, 0.5), ctx.currentTime);
+    noiseBusRef.current?.gain.setValueAtTime(clamp01(p.noiseVolume, 0), ctx.currentTime);
+    ambienceBusRef.current?.gain.setValueAtTime(clamp01(p.ambienceVolume, 0), ctx.currentTime);
 
     // Reverb
     if (reverbSendRef.current) {
-      const send = p.effects.reverb.enabled ? p.effects.reverb.amount : 0;
+      const amount = clamp01(p.effects?.reverb?.amount, 0);
+      const send = p.effects?.reverb?.enabled ? amount : 0;
       reverbSendRef.current.gain.setValueAtTime(send, ctx.currentTime);
     }
 
     // Lowpass (bypass by Nyquist)
     if (lowpassRef.current) {
       const nyquist = ctx.sampleRate / 2;
-      const target = p.effects.lowpass.enabled ? p.effects.lowpass.frequency : nyquist;
+      const raw = p.effects?.lowpass?.frequency;
+      const freq = typeof raw === "number" && Number.isFinite(raw) ? raw : nyquist;
+      const target = p.effects?.lowpass?.enabled ? Math.max(20, Math.min(nyquist, freq)) : nyquist;
       lowpassRef.current.frequency.setValueAtTime(target, ctx.currentTime);
     }
 
     // Noise-only autopan
     if (noisePannerRef.current) {
-      if (p.effects.autoPan.enabled) {
+      if (p.effects?.autoPan?.enabled) {
+        const rateRaw = p.effects.autoPan.rate;
+        const rate = typeof rateRaw === "number" && Number.isFinite(rateRaw) ? rateRaw : 0.1;
+        const depth = clamp01(p.effects.autoPan.depth, 0.5);
+
         if (!autoPanOscRef.current || !autoPanGainRef.current) {
           const osc = ctx.createOscillator();
           const g = ctx.createGain();
           osc.type = "sine";
-          osc.frequency.value = p.effects.autoPan.rate;
-          g.gain.value = p.effects.autoPan.depth;
+          osc.frequency.value = rate;
+          g.gain.value = depth;
           osc.connect(g);
           g.connect(noisePannerRef.current.pan);
           osc.start();
           autoPanOscRef.current = osc;
           autoPanGainRef.current = g;
         } else {
-          autoPanOscRef.current.frequency.setValueAtTime(p.effects.autoPan.rate, ctx.currentTime);
-          autoPanGainRef.current.gain.setValueAtTime(p.effects.autoPan.depth, ctx.currentTime);
+          autoPanOscRef.current.frequency.setValueAtTime(rate, ctx.currentTime);
+          autoPanGainRef.current.gain.setValueAtTime(depth, ctx.currentTime);
         }
       } else {
         if (autoPanOscRef.current) {
