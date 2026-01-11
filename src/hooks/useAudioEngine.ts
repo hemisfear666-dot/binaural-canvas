@@ -1,5 +1,6 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { Section, PlaybackState, WaveformType } from '@/types/binaural';
+import { resumeAudioContext } from '@/lib/audio/resumeAudioContext';
 
 interface AudioEngineState {
   playbackState: PlaybackState;
@@ -57,7 +58,7 @@ export function useAudioEngine(
     const ctx = getAudioContext();
     audioCtxRef.current = ctx;
 
-    if (ctx.state === 'suspended') ctx.resume();
+    void resumeAudioContext(ctx, 'engine');
 
     if (!masterGainRef.current) {
       masterGainRef.current = ctx.createGain();
