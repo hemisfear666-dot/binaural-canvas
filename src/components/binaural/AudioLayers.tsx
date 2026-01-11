@@ -31,6 +31,9 @@ export function AudioLayers({
   const [previewingNoise, setPreviewingNoise] = useState(false);
   const [previewingAmbience, setPreviewingAmbience] = useState(false);
 
+  const noisePct = Math.round(((typeof noise.volume === 'number' && Number.isFinite(noise.volume)) ? noise.volume : 0) * 100);
+  const ambiencePct = Math.round(((typeof ambience.volume === 'number' && Number.isFinite(ambience.volume)) ? ambience.volume : 0) * 100);
+
   const handleNoisePreview = () => {
     if (previewingNoise) {
       onStopPreviewNoise?.();
@@ -112,14 +115,14 @@ export function AudioLayers({
           <div className="flex items-center gap-2">
             <Volume2 className="h-3 w-3 text-muted-foreground shrink-0" />
             <Slider
-              value={[noise.volume * 100]}
+              value={[noisePct]}
               onValueChange={([v]) => onNoiseChange({ ...noise, volume: v / 100 })}
               max={100}
               step={1}
               className="flex-1"
             />
             <span className="font-mono text-xs text-muted-foreground w-8">
-              {Math.round(noise.volume * 100)}%
+              {noisePct}%
             </span>
           </div>
         </div>
@@ -201,14 +204,14 @@ export function AudioLayers({
           <div className="flex items-center gap-2">
             <Volume2 className="h-3 w-3 text-muted-foreground shrink-0" />
             <Slider
-              value={[ambience.volume * 100]}
+              value={[ambiencePct]}
               onValueChange={([v]) => onAmbienceChange({ ...ambience, volume: v / 100 })}
               max={100}
               step={1}
               className="flex-1"
             />
             <span className="font-mono text-xs text-muted-foreground w-8">
-              {Math.round(ambience.volume * 100)}%
+              {ambiencePct}%
             </span>
           </div>
         </div>
