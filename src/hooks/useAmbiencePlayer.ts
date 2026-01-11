@@ -1,5 +1,6 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { AmbienceType } from '@/types/binaural';
+import { resumeAudioContext } from '@/lib/audio/resumeAudioContext';
 
 type EnsureAudioContext = () => AudioContext;
 
@@ -57,7 +58,7 @@ function createAmbience(ctx: AudioContext, type: AmbienceType, destination: Audi
 
     sources.push(src);
     nodes.push(hp, bp, gain);
-    src.start(now);
+    src.start();
   }
 
   if (type === 'forest') {
@@ -91,8 +92,8 @@ function createAmbience(ctx: AudioContext, type: AmbienceType, destination: Audi
     sources.push(src, lfo);
     nodes.push(lp, gain, lfoGain);
 
-    src.start(now);
-    lfo.start(now);
+    src.start();
+    lfo.start();
   }
 
   if (type === 'drone') {
@@ -131,9 +132,9 @@ function createAmbience(ctx: AudioContext, type: AmbienceType, destination: Audi
     sources.push(oscA, oscB, drift);
     nodes.push(gain, lp, driftGain);
 
-    oscA.start(now);
-    oscB.start(now);
-    drift.start(now);
+    oscA.start();
+    oscB.start();
+    drift.start();
   }
 
   out.connect(destination);
@@ -172,7 +173,13 @@ export function useAmbiencePlayer(
   const mainRef = useRef<RunningAmbience | null>(null);
   const previewRef = useRef<RunningAmbience | null>(null);
 
+  const mainTokenRef = useRef(0);
+  const previewTokenRef = useRef(0);
+
   const stopMain = useCallback(() => {
+    // cancel any pending async starts
+    mainTokenRef.current++;
+
     if (mainRef.current) {
       mainRef.current.stop();
       mainRef.current = null;
@@ -180,6 +187,9 @@ export function useAmbiencePlayer(
   }, []);
 
   const stopPreview = useCallback(() => {
+    // cancel any pending async starts
+    previewTokenRef.current++;
+
     if (previewRef.current) {
       previewRef.current.stop();
       previewRef.current = null;
@@ -194,7 +204,13 @@ export function useAmbiencePlayer(
 
       if (mainRef.current?.type === type) return;
       stopMain();
-      mainRef.current = createAmbience(ctx, type, dest);
+
+      const token = ++mainTokenRef.current;
+      void (async () => {
+        const ok = await resumeAudioContext(ctx, 'ambience');
+        if (!ok || mainTokenRef.current !== token) return;
+        mainRef.current = createAmbience(ctx, type, dest);
+      })();
     },
     [ensureAudioContext, getDestination, stopMain]
   );
@@ -208,7 +224,13 @@ export function useAmbiencePlayer(
 
       if (previewRef.current?.type === typeToPlay) return;
       stopPreview();
-      previewRef.current = createAmbience(ctx, typeToPlay, dest);
+
+      const token = ++previewTokenRef.current;
+      void (async () => {
+        const ok = await resumeAudioContext(ctx, 'ambience');
+        if (!ok || previewTokenRef.current !== token) return;
+        previewRef.current = createAmbience(ctx, typeToPlay, dest);
+      })();
     },
     [ambienceType, ensureAudioContext, getDestination, stopPreview]
   );

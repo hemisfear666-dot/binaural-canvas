@@ -1,5 +1,6 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { NoiseType } from '@/types/binaural';
+import { resumeAudioContext } from '@/lib/audio/resumeAudioContext';
 
 type EnsureAudioContext = () => AudioContext;
 
@@ -13,6 +14,7 @@ export function useNoiseGenerator(
 ) {
   const noiseNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const isPlayingRef = useRef(false);
+  const startTokenRef = useRef(0);
 
   const createNoiseBuffer = useCallback((ctx: AudioContext, type: NoiseType): AudioBuffer => {
     const bufferSize = ctx.sampleRate * 2; // 2 seconds
@@ -56,6 +58,9 @@ export function useNoiseGenerator(
   }, []);
 
   const stopPreview = useCallback(() => {
+    // cancel any pending async starts
+    startTokenRef.current++;
+
     if (noiseNodeRef.current) {
       try {
         noiseNodeRef.current.stop();
@@ -76,17 +81,23 @@ export function useNoiseGenerator(
       const typeToPlay = type ?? noiseType;
 
       stopPreview();
+      const token = ++startTokenRef.current;
 
-      const buffer = createNoiseBuffer(ctx, typeToPlay);
-      const noise = ctx.createBufferSource();
-      noise.buffer = buffer;
-      noise.loop = true;
+      void (async () => {
+        const ok = await resumeAudioContext(ctx, 'noise');
+        if (!ok || startTokenRef.current !== token) return;
 
-      noise.connect(dest);
-      noise.start();
+        const buffer = createNoiseBuffer(ctx, typeToPlay);
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+        noise.loop = true;
 
-      noiseNodeRef.current = noise;
-      isPlayingRef.current = true;
+        noise.connect(dest);
+        noise.start();
+
+        noiseNodeRef.current = noise;
+        isPlayingRef.current = true;
+      })();
     },
     [createNoiseBuffer, ensureAudioContext, getDestination, noiseType, stopPreview]
   );

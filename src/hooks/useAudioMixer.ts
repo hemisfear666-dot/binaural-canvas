@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { EffectsSettings } from "@/types/binaural";
+import { resumeAudioContext } from "@/lib/audio/resumeAudioContext";
 
 function createHallImpulse(ctx: AudioContext, seconds = 7, decay = 3.5) {
   const length = Math.floor(ctx.sampleRate * seconds);
@@ -190,7 +191,7 @@ export function useAudioMixer(
 
   const ensure = useCallback(() => {
     const ctx = init();
-    if (ctx.state === "suspended") ctx.resume();
+    void resumeAudioContext(ctx, "mixer");
     return ctx;
   }, [init]);
 
