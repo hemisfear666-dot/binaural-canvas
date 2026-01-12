@@ -1,11 +1,15 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Zap, Moon, Brain, Sparkles, Heart } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Zap, Moon, Brain, Sparkles, Heart, Star, Trash2, Search } from 'lucide-react';
 import { Section } from '@/types/binaural';
+import { CustomPreset } from '@/hooks/useCustomPresets';
 
 interface Preset {
   name: string;
@@ -17,7 +21,7 @@ interface Preset {
   duration: number;
 }
 
-const presets: Preset[] = [
+const builtInPresets: Preset[] = [
   {
     name: 'Delta - Deep Sleep',
     description: '0.5-4Hz • Restorative sleep, healing',
@@ -67,10 +71,15 @@ const presets: Preset[] = [
 
 interface PresetLibraryProps {
   onAddPreset: (section: Omit<Section, 'id'>) => void;
+  customPresets: CustomPreset[];
+  onDeleteCustomPreset: (id: string) => void;
 }
 
-export function PresetLibrary({ onAddPreset }: PresetLibraryProps) {
-  const handleSelect = (preset: Preset) => {
+export function PresetLibrary({ onAddPreset, customPresets, onDeleteCustomPreset }: PresetLibraryProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [open, setOpen] = useState(false);
+
+  const handleSelectBuiltIn = (preset: Preset) => {
     onAddPreset({
       name: preset.name,
       duration: preset.duration,
@@ -79,10 +88,31 @@ export function PresetLibrary({ onAddPreset }: PresetLibraryProps) {
       volume: 0.8,
       muted: false,
     });
+    setOpen(false);
   };
 
+  const handleSelectCustom = (preset: CustomPreset) => {
+    onAddPreset({
+      name: preset.name,
+      duration: preset.duration,
+      carrier: preset.carrier,
+      beat: preset.beat,
+      volume: 0.8,
+      muted: false,
+    });
+    setOpen(false);
+  };
+
+  const filteredBuiltIn = builtInPresets.filter(
+    (p) => p.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredCustom = customPresets.filter(
+    (p) => p.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -90,35 +120,118 @@ export function PresetLibrary({ onAddPreset }: PresetLibraryProps) {
         >
           <Sparkles className="h-4 w-4 mr-2" />
           Presets
+          {customPresets.length > 0 && (
+            <span className="ml-1.5 text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">
+              +{customPresets.length}
+            </span>
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 bg-void-surface border-accent/30 p-2" align="start">
-        <div className="space-y-1">
-          <h4 className="text-xs uppercase tracking-widest text-accent font-medium px-2 py-1">
-            Brainwave Presets
-          </h4>
-          {presets.map((preset) => (
-            <button
-              key={preset.name}
-              onClick={() => handleSelect(preset)}
-              className="w-full text-left p-3 rounded-md hover:bg-accent/10 transition-colors group"
-            >
-              <div className="flex items-center gap-3">
-                <div className={`${preset.color}`}>{preset.icon}</div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-foreground group-hover:text-accent transition-colors">
-                    {preset.name}
+        <div className="space-y-2">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search presets..."
+              className="h-8 pl-7 bg-void border-border text-xs"
+            />
+          </div>
+
+          <ScrollArea className="h-[320px]">
+            <div className="space-y-1 pr-2">
+              {/* Built-in Presets */}
+              <h4 className="text-[10px] uppercase tracking-widest text-accent font-medium px-2 py-1.5 sticky top-0 bg-void-surface">
+                Brainwave Presets
+              </h4>
+              {filteredBuiltIn.map((preset) => (
+                <button
+                  key={preset.name}
+                  onClick={() => handleSelectBuiltIn(preset)}
+                  className="w-full text-left p-2.5 rounded-md hover:bg-accent/10 transition-colors group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`${preset.color}`}>{preset.icon}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-foreground group-hover:text-accent transition-colors truncate">
+                        {preset.name}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground truncate">
+                        {preset.description}
+                      </div>
+                    </div>
+                    <div className="text-xs font-mono text-accent/70 shrink-0">
+                      {preset.beat}Hz
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {preset.description}
-                  </div>
+                </button>
+              ))}
+
+              {/* Custom Presets */}
+              {customPresets.length > 0 && (
+                <>
+                  <h4 className="text-[10px] uppercase tracking-widest text-primary font-medium px-2 py-1.5 mt-2 sticky top-0 bg-void-surface flex items-center gap-1.5">
+                    <Star className="h-3 w-3" />
+                    Your Presets ({customPresets.length})
+                  </h4>
+                  {filteredCustom.length === 0 && searchQuery && (
+                    <div className="text-xs text-muted-foreground px-2 py-3 text-center">
+                      No matching custom presets
+                    </div>
+                  )}
+                  {filteredCustom.map((preset) => (
+                    <div
+                      key={preset.id}
+                      className="w-full p-2.5 rounded-md hover:bg-primary/10 transition-colors group flex items-center gap-2"
+                    >
+                      <button
+                        onClick={() => handleSelectCustom(preset)}
+                        className="flex-1 text-left flex items-center gap-3 min-w-0"
+                      >
+                        <Star className="h-4 w-4 text-primary shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                            {preset.name}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {preset.carrier}Hz carrier • {preset.duration}s
+                          </div>
+                        </div>
+                        <div className="text-xs font-mono text-primary/70 shrink-0">
+                          {preset.beat}Hz
+                        </div>
+                      </button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteCustomPreset(preset.id);
+                        }}
+                        className="h-6 w-6 text-muted-foreground hover:text-accent hover:bg-accent/10 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </>
+              )}
+
+              {filteredBuiltIn.length === 0 && filteredCustom.length === 0 && (
+                <div className="text-xs text-muted-foreground px-2 py-6 text-center">
+                  No presets found
                 </div>
-                <div className="text-xs font-mono text-accent/70">
-                  {preset.beat}Hz
-                </div>
-              </div>
-            </button>
-          ))}
+              )}
+            </div>
+          </ScrollArea>
+
+          {customPresets.length > 0 && (
+            <div className="text-[9px] text-muted-foreground text-center pt-1 border-t border-border">
+              Save sections as presets using ★ in sequence editor
+            </div>
+          )}
         </div>
       </PopoverContent>
     </Popover>

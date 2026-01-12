@@ -357,9 +357,309 @@ function createDrone(ctx: AudioContext, destination: AudioNode): RunningAmbience
   return { type: "drone", sources, nodes, stop };
 }
 
+function createWindchimes(ctx: AudioContext, destination: AudioNode): RunningAmbience {
+  const sources: (AudioScheduledSourceNode | OscillatorNode)[] = [];
+  const nodes: AudioNode[] = [];
+
+  const out = ctx.createGain();
+  out.gain.value = 1;
+  nodes.push(out);
+
+  // Subtle wind bed
+  const windBed = ctx.createBufferSource();
+  windBed.buffer = createWhiteNoiseBuffer(ctx, 2.0);
+  windBed.loop = true;
+
+  const windLp = ctx.createBiquadFilter();
+  windLp.type = "lowpass";
+  windLp.frequency.value = 400;
+  windLp.Q.value = 0.3;
+
+  const windGain = ctx.createGain();
+  windGain.gain.value = 0.04;
+
+  windBed.connect(windLp);
+  windLp.connect(windGain);
+  windGain.connect(out);
+
+  sources.push(windBed);
+  nodes.push(windLp, windGain);
+  windBed.start();
+
+  // Chime frequencies (pentatonic scale in high register)
+  const chimeFreqs = [523, 587, 659, 784, 880, 988, 1047, 1175, 1319];
+
+  let cancelled = false;
+  const timeouts: number[] = [];
+
+  const spawnChime = () => {
+    const freq = chimeFreqs[Math.floor(Math.random() * chimeFreqs.length)];
+    const detune = (Math.random() - 0.5) * 20; // slight natural variation
+
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    osc.detune.value = detune;
+
+    // Add harmonics for metallic shimmer
+    const osc2 = ctx.createOscillator();
+    osc2.type = "sine";
+    osc2.frequency.value = freq * 2.4; // inharmonic partial
+    osc2.detune.value = detune + 15;
+
+    const osc3 = ctx.createOscillator();
+    osc3.type = "sine";
+    osc3.frequency.value = freq * 5.4;
+    osc3.detune.value = detune - 10;
+
+    const g = ctx.createGain();
+    const g2 = ctx.createGain();
+    const g3 = ctx.createGain();
+
+    const t0 = ctx.currentTime;
+    const decay = 1.5 + Math.random() * 2;
+
+    g.gain.setValueAtTime(0.15, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + decay);
+
+    g2.gain.setValueAtTime(0.06, t0);
+    g2.gain.exponentialRampToValueAtTime(0.0001, t0 + decay * 0.7);
+
+    g3.gain.setValueAtTime(0.02, t0);
+    g3.gain.exponentialRampToValueAtTime(0.0001, t0 + decay * 0.4);
+
+    osc.connect(g);
+    osc2.connect(g2);
+    osc3.connect(g3);
+    g.connect(out);
+    g2.connect(out);
+    g3.connect(out);
+
+    sources.push(osc, osc2, osc3);
+    nodes.push(g, g2, g3);
+
+    osc.start(t0);
+    osc2.start(t0);
+    osc3.start(t0);
+    osc.stop(t0 + decay + 0.1);
+    osc2.stop(t0 + decay + 0.1);
+    osc3.stop(t0 + decay + 0.1);
+  };
+
+  const schedule = () => {
+    if (cancelled) return;
+    // Random intervals with clusters
+    const ms = 800 + Math.random() * 2500;
+    const id = window.setTimeout(() => {
+      if (cancelled) return;
+      spawnChime();
+      // Sometimes play 2-3 chimes in quick succession (wind gust)
+      if (Math.random() < 0.3) {
+        const delay1 = 80 + Math.random() * 150;
+        const clusterId = window.setTimeout(() => {
+          if (!cancelled) spawnChime();
+        }, delay1);
+        timeouts.push(clusterId);
+      }
+      if (Math.random() < 0.15) {
+        const delay2 = 200 + Math.random() * 200;
+        const clusterId2 = window.setTimeout(() => {
+          if (!cancelled) spawnChime();
+        }, delay2);
+        timeouts.push(clusterId2);
+      }
+      schedule();
+    }, ms);
+    timeouts.push(id);
+  };
+
+  schedule();
+  out.connect(destination);
+
+  const stop = () => {
+    cancelled = true;
+    for (const id of timeouts) window.clearTimeout(id);
+
+    for (const s of sources) {
+      try { s.stop(); } catch { /* ignore */ }
+    }
+    for (const n of nodes) {
+      try { n.disconnect(); } catch { /* ignore */ }
+    }
+    try { out.disconnect(); } catch { /* ignore */ }
+  };
+
+  return { type: "windchimes", sources, nodes, stop };
+}
+
+function createGongs(ctx: AudioContext, destination: AudioNode): RunningAmbience {
+  const sources: (AudioScheduledSourceNode | OscillatorNode)[] = [];
+  const nodes: AudioNode[] = [];
+
+  const out = ctx.createGain();
+  out.gain.value = 1;
+  nodes.push(out);
+
+  // Deep ambient bed
+  const bed = ctx.createOscillator();
+  bed.type = "sine";
+  bed.frequency.value = 55;
+
+  const bedGain = ctx.createGain();
+  bedGain.gain.value = 0.06;
+
+  const bedLp = ctx.createBiquadFilter();
+  bedLp.type = "lowpass";
+  bedLp.frequency.value = 200;
+
+  bed.connect(bedLp);
+  bedLp.connect(bedGain);
+  bedGain.connect(out);
+
+  sources.push(bed);
+  nodes.push(bedLp, bedGain);
+  bed.start();
+
+  // Gong frequencies (low, resonant)
+  const gongFreqs = [65, 82, 98, 110, 131, 147];
+
+  let cancelled = false;
+  const timeouts: number[] = [];
+
+  const spawnGong = () => {
+    const freq = gongFreqs[Math.floor(Math.random() * gongFreqs.length)];
+    const t0 = ctx.currentTime;
+    const decay = 6 + Math.random() * 4;
+
+    // Main tone
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+
+    // Inharmonic partials for gong character
+    const osc2 = ctx.createOscillator();
+    osc2.type = "sine";
+    osc2.frequency.value = freq * 1.18;
+
+    const osc3 = ctx.createOscillator();
+    osc3.type = "sine";
+    osc3.frequency.value = freq * 2.35;
+
+    const osc4 = ctx.createOscillator();
+    osc4.type = "sine";
+    osc4.frequency.value = freq * 3.14;
+
+    // Attack transient (metallic hit)
+    const noise = ctx.createBufferSource();
+    noise.buffer = createWhiteNoiseBuffer(ctx, 0.1);
+
+    const noiseBp = ctx.createBiquadFilter();
+    noiseBp.type = "bandpass";
+    noiseBp.frequency.value = freq * 4;
+    noiseBp.Q.value = 5;
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.15, t0);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.08);
+
+    noise.connect(noiseBp);
+    noiseBp.connect(noiseGain);
+    noiseGain.connect(out);
+
+    // Gains with swell
+    const g = ctx.createGain();
+    const g2 = ctx.createGain();
+    const g3 = ctx.createGain();
+    const g4 = ctx.createGain();
+
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(0.2, t0 + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + decay);
+
+    g2.gain.setValueAtTime(0, t0);
+    g2.gain.linearRampToValueAtTime(0.12, t0 + 0.06);
+    g2.gain.exponentialRampToValueAtTime(0.0001, t0 + decay * 0.8);
+
+    g3.gain.setValueAtTime(0, t0);
+    g3.gain.linearRampToValueAtTime(0.06, t0 + 0.04);
+    g3.gain.exponentialRampToValueAtTime(0.0001, t0 + decay * 0.6);
+
+    g4.gain.setValueAtTime(0, t0);
+    g4.gain.linearRampToValueAtTime(0.03, t0 + 0.03);
+    g4.gain.exponentialRampToValueAtTime(0.0001, t0 + decay * 0.4);
+
+    // Slow pitch drift for warmth
+    osc.frequency.setValueAtTime(freq, t0);
+    osc.frequency.linearRampToValueAtTime(freq * 0.995, t0 + decay);
+
+    osc.connect(g);
+    osc2.connect(g2);
+    osc3.connect(g3);
+    osc4.connect(g4);
+    g.connect(out);
+    g2.connect(out);
+    g3.connect(out);
+    g4.connect(out);
+
+    sources.push(osc, osc2, osc3, osc4, noise);
+    nodes.push(g, g2, g3, g4, noiseBp, noiseGain);
+
+    osc.start(t0);
+    osc2.start(t0);
+    osc3.start(t0);
+    osc4.start(t0);
+    noise.start(t0);
+
+    osc.stop(t0 + decay + 0.1);
+    osc2.stop(t0 + decay + 0.1);
+    osc3.stop(t0 + decay + 0.1);
+    osc4.stop(t0 + decay + 0.1);
+    noise.stop(t0 + 0.15);
+  };
+
+  const schedule = () => {
+    if (cancelled) return;
+    // Gongs are spaced far apart for meditative feel
+    const ms = 8000 + Math.random() * 12000;
+    const id = window.setTimeout(() => {
+      if (cancelled) return;
+      spawnGong();
+      schedule();
+    }, ms);
+    timeouts.push(id);
+  };
+
+  // Initial gong after short delay
+  const initId = window.setTimeout(() => {
+    if (!cancelled) spawnGong();
+    schedule();
+  }, 2000);
+  timeouts.push(initId);
+
+  out.connect(destination);
+
+  const stop = () => {
+    cancelled = true;
+    for (const id of timeouts) window.clearTimeout(id);
+
+    for (const s of sources) {
+      try { s.stop(); } catch { /* ignore */ }
+    }
+    for (const n of nodes) {
+      try { n.disconnect(); } catch { /* ignore */ }
+    }
+    try { out.disconnect(); } catch { /* ignore */ }
+  };
+
+  return { type: "gongs", sources, nodes, stop };
+}
+
 export function createAmbience(ctx: AudioContext, type: AmbienceType, destination: AudioNode): RunningAmbience | null {
   if (type === "none") return null;
   if (type === "rain") return createRain(ctx, destination);
   if (type === "forest") return createForest(ctx, destination);
-  return createDrone(ctx, destination);
+  if (type === "drone") return createDrone(ctx, destination);
+  if (type === "windchimes") return createWindchimes(ctx, destination);
+  if (type === "gongs") return createGongs(ctx, destination);
+  return null;
 }

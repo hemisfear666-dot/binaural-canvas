@@ -5,6 +5,7 @@ import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { useNoiseGenerator } from '@/hooks/useNoiseGenerator';
 import { useAmbiencePlayer } from '@/hooks/useAmbiencePlayer';
 import { useHistory } from '@/hooks/useHistory';
+import { useCustomPresets } from '@/hooks/useCustomPresets';
 import { GlobalControls } from './GlobalControls';
 import { TransportControls } from './TransportControls';
 import { Timeline } from './Timeline';
@@ -71,7 +72,7 @@ const loadSavedTrack = (): Track => {
 
   const isWaveform = (v: unknown): v is WaveformType => v === 'sine' || v === 'triangle' || v === 'sawtooth';
   const isNoiseType = (v: unknown): v is NoiseType => v === 'white' || v === 'pink' || v === 'brown';
-  const isAmbienceType = (v: unknown): v is AmbienceType => v === 'none' || v === 'rain' || v === 'forest' || v === 'drone';
+  const isAmbienceType = (v: unknown): v is AmbienceType => v === 'none' || v === 'rain' || v === 'forest' || v === 'drone' || v === 'windchimes' || v === 'gongs';
 
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -150,6 +151,9 @@ export function BinauralWorkstation() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [pixelsPerSecond, setPixelsPerSecond] = useState(8);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Custom presets management
+  const { presets: customPresets, addPreset: addCustomPreset, deletePreset: deleteCustomPreset } = useCustomPresets();
 
   // Shared mixer (tones + background layers + FX)
   const mixer = useAudioMixer(
@@ -383,6 +387,12 @@ export function BinauralWorkstation() {
     toast.success(`Added "${preset.name}"`);
   }, [track.sections, handleSectionsChange]);
 
+  // Save section as custom preset
+  const handleSaveAsPreset = useCallback((section: Section) => {
+    const preset = addCustomPreset(section);
+    toast.success(`Saved "${preset.name}" to presets`);
+  }, [addCustomPreset]);
+
   // BPM handler
   const handleBpmChange = useCallback((bpm: number) => {
     setTrack((prev) => ({ ...prev, bpm: Math.max(20, Math.min(300, bpm)) }));
@@ -528,7 +538,11 @@ export function BinauralWorkstation() {
 
             <div className="w-px h-5 bg-border mx-0.5 md:mx-1" />
 
-            <PresetLibrary onAddPreset={handleAddPreset} />
+            <PresetLibrary 
+              onAddPreset={handleAddPreset} 
+              customPresets={customPresets}
+              onDeleteCustomPreset={deleteCustomPreset}
+            />
 
             <KeyboardShortcuts
               isOpen={helpOpen}
@@ -600,6 +614,7 @@ export function BinauralWorkstation() {
                 onStopTest={stopTest}
                 onToggleSelect={handleToggleSelect}
                 onEditClick={handleSectionEditClick}
+                onSaveAsPreset={handleSaveAsPreset}
               />
             </div>
 

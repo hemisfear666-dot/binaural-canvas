@@ -14,7 +14,7 @@ export interface Section {
 
 export type WaveformType = 'sine' | 'triangle' | 'sawtooth';
 export type NoiseType = 'white' | 'pink' | 'brown';
-export type AmbienceType = 'none' | 'rain' | 'forest' | 'drone';
+export type AmbienceType = 'none' | 'rain' | 'forest' | 'drone' | 'windchimes' | 'gongs';
 
 export interface NoiseSettings {
   type: NoiseType;
