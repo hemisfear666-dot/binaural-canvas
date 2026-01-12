@@ -527,6 +527,180 @@ export function useAudioEngine(
     pausedTimeRef.current = 0;
   }, [play]);
 
+  // Store isIsochronic ref for live mode switching
+  const isIsochronicRef = useRef(isIsochronic);
+  useEffect(() => {
+    isIsochronicRef.current = isIsochronic;
+  }, [isIsochronic]);
+
+  // Live mode switching: restart playback when isIsochronic changes during play
+  const prevIsIsochronicRef = useRef(isIsochronic);
+  useEffect(() => {
+    if (prevIsIsochronicRef.current !== isIsochronic) {
+      prevIsIsochronicRef.current = isIsochronic;
+      
+      // If currently playing, restart from current time with new mode
+      if (state.playbackState === 'playing' && audioCtxRef.current) {
+        const currentPos = state.currentTime;
+        cleanupMainNodes();
+        
+        // Re-schedule all sections with new mode
+        startTimeRef.current = currentPos;
+        playbackStartRef.current = audioCtxRef.current.currentTime;
+
+        let timeAccumulator = 0;
+        sections.forEach((section) => {
+          const rampEnabled = getRampEnabled(section);
+
+          if (timeAccumulator + section.duration > currentPos && !section.muted) {
+            const sectionStart = Math.max(0, currentPos - timeAccumulator);
+            const sectionDuration = section.duration - sectionStart;
+            const startOffset = Math.max(0, timeAccumulator - currentPos);
+
+            const progress = sectionStart / section.duration;
+
+            const currentCarrier = rampEnabled && section.endCarrier !== undefined
+              ? section.carrier + (section.endCarrier - section.carrier) * progress
+              : section.carrier;
+
+            const currentBeat = rampEnabled && section.endBeat !== undefined
+              ? section.beat + (section.endBeat - section.beat) * progress
+              : section.beat;
+
+            playTone({
+              sectionId: section.id,
+              carrier: currentCarrier,
+              endCarrier: section.endCarrier,
+              beat: currentBeat,
+              endBeat: section.endBeat,
+              rampEnabled,
+              duration: sectionDuration,
+              volume: section.volume,
+              muted: section.muted,
+              startOffset,
+              isTest: false,
+            });
+          }
+          timeAccumulator += section.duration;
+        });
+      }
+      
+      // If testing, restart test with new mode
+      if (state.testingIndex !== null) {
+        const testIdx = state.testingIndex;
+        cleanupTestNodes();
+        // Small delay to let cleanup finish
+        setTimeout(() => {
+          if (testIdx !== null) {
+            restartTestWithNewMode(testIdx);
+          }
+        }, 10);
+      }
+    }
+  }, [isIsochronic, state.playbackState, state.currentTime, state.testingIndex, sections, cleanupMainNodes, getRampEnabled, playTone]);
+
+  // Helper to restart test with current mode
+  const restartTestWithNewMode = useCallback(
+    (sectionIndex: number) => {
+      initAudio();
+      cleanupTestNodes();
+
+      const section = sections[sectionIndex];
+      if (!section || !audioCtxRef.current || !masterGainRef.current) return;
+
+      const ctx = audioCtxRef.current;
+      const now = ctx.currentTime;
+      const duration = 86400;
+      const endTime = now + duration;
+
+      const needsFilter = waveformRef.current !== 'sine';
+
+      const sectionGain = ctx.createGain();
+      sectionGain.gain.setValueAtTime(section.muted ? 0 : section.volume, now);
+
+      if (isIsochronicRef.current) {
+        const osc = ctx.createOscillator();
+        osc.type = waveformRef.current;
+        osc.frequency.setValueAtTime(section.carrier, now);
+
+        const amp = ctx.createGain();
+        amp.gain.value = 0.5;
+
+        const lfo = ctx.createOscillator();
+        lfo.frequency.setValueAtTime(section.beat, now);
+
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.value = 0.5;
+
+        lfo.connect(lfoGain);
+        lfoGain.connect(amp.gain);
+
+        if (needsFilter) {
+          const filter = createLowPassFilter(ctx);
+          osc.connect(filter);
+          filter.connect(amp);
+          testNodesRef.current.push(filter);
+        } else {
+          osc.connect(amp);
+        }
+
+        amp.connect(sectionGain);
+        sectionGain.connect(masterGainRef.current);
+
+        osc.start(now);
+        lfo.start(now);
+        osc.stop(endTime);
+        lfo.stop(endTime);
+
+        testNodesRef.current.push(osc, lfo, amp, lfoGain, sectionGain);
+        testOscillatorRef.current = { osc, lfo, sectionIndex };
+      } else {
+        const oscL = ctx.createOscillator();
+        const oscR = ctx.createOscillator();
+        oscL.type = waveformRef.current;
+        oscR.type = waveformRef.current;
+
+        const panL = ctx.createStereoPanner();
+        const panR = ctx.createStereoPanner();
+        panL.pan.value = -1;
+        panR.pan.value = 1;
+
+        const leftFreq = section.carrier - section.beat / 2;
+        const rightFreq = section.carrier + section.beat / 2;
+        oscL.frequency.setValueAtTime(leftFreq, now);
+        oscR.frequency.setValueAtTime(rightFreq, now);
+
+        if (needsFilter) {
+          const filterL = createLowPassFilter(ctx);
+          const filterR = createLowPassFilter(ctx);
+          oscL.connect(filterL);
+          oscR.connect(filterR);
+          filterL.connect(panL);
+          filterR.connect(panR);
+          testNodesRef.current.push(filterL, filterR);
+        } else {
+          oscL.connect(panL);
+          oscR.connect(panR);
+        }
+
+        panL.connect(sectionGain);
+        panR.connect(sectionGain);
+        sectionGain.connect(masterGainRef.current);
+
+        oscL.start(now);
+        oscR.start(now);
+        oscL.stop(endTime);
+        oscR.stop(endTime);
+
+        testNodesRef.current.push(oscL, oscR, panL, panR, sectionGain);
+        testOscillatorRef.current = { oscL, oscR, sectionIndex };
+      }
+
+      setState((prev) => ({ ...prev, testingIndex: sectionIndex }));
+    },
+    [cleanupTestNodes, createLowPassFilter, initAudio, sections]
+  );
+
   const testSection = useCallback(
     (sectionIndex: number) => {
       initAudio();

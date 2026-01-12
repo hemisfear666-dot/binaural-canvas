@@ -4,7 +4,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Waves, Trees, Cloud, Volume2, Play, Square } from 'lucide-react';
+import { Waves, Trees, Cloud, Volume2, Play, Square, Music, Bell } from 'lucide-react';
 import { NoiseType, AmbienceType, NoiseSettings, AmbienceSettings } from '@/types/binaural';
 
 interface AudioLayersProps {
@@ -196,6 +196,18 @@ export function AudioLayers({
                 <div className="flex items-center gap-2">
                   <Waves className="h-3 w-3" />
                   Drone
+                </div>
+              </SelectItem>
+              <SelectItem value="windchimes">
+                <div className="flex items-center gap-2">
+                  <Bell className="h-3 w-3" />
+                  Windchimes
+                </div>
+              </SelectItem>
+              <SelectItem value="gongs">
+                <div className="flex items-center gap-2">
+                  <Music className="h-3 w-3" />
+                  Gongs
                 </div>
               </SelectItem>
             </SelectContent>

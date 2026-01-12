@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
-import { GripVertical, Volume2, VolumeX, Play, Square, Trash2, Edit3, ArrowRight } from 'lucide-react';
+import { GripVertical, Volume2, VolumeX, Play, Square, Trash2, Edit3, ArrowRight, Star } from 'lucide-react';
 
 interface SectionRowProps {
   section: Section;
@@ -26,6 +26,7 @@ interface SectionRowProps {
   onDragLeave: () => void;
   onDrop: (e: React.DragEvent, index: number) => void;
   onDragEnd: () => void;
+  onSaveAsPreset?: () => void;
 }
 
 export function SectionRow({
@@ -48,6 +49,7 @@ export function SectionRow({
   onDragLeave,
   onDrop,
   onDragEnd,
+  onSaveAsPreset,
 }: SectionRowProps) {
   const rowRef = useRef<HTMLDivElement>(null);
 
@@ -171,6 +173,17 @@ export function SectionRow({
 
           {/* Actions */}
           <div className="flex items-center gap-1 shrink-0">
+            {onSaveAsPreset && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onSaveAsPreset}
+                className="h-7 w-7 shrink-0 text-muted-foreground hover:text-yellow-400 hover:bg-yellow-400/10"
+                title="Save as preset"
+              >
+                <Star className="h-3 w-3" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"

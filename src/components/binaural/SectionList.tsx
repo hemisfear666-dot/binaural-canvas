@@ -15,6 +15,7 @@ interface SectionListProps {
   onStopTest: () => void;
   onToggleSelect: (index: number) => void;
   onEditClick: (index: number) => void;
+  onSaveAsPreset?: (section: Section) => void;
 }
 
 export function SectionList({
@@ -28,6 +29,7 @@ export function SectionList({
   onStopTest,
   onToggleSelect,
   onEditClick,
+  onSaveAsPreset,
 }: SectionListProps) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -154,6 +156,7 @@ export function SectionList({
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onDragEnd={handleDragEnd}
+            onSaveAsPreset={onSaveAsPreset ? () => onSaveAsPreset(section) : undefined}
           />
         ))}
       </div>
