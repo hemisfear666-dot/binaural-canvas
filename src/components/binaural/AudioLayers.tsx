@@ -5,53 +5,44 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Waves, Trees, Cloud, Volume2, Play, Square, Music, Bell, Wind, Fan, Sparkles } from 'lucide-react';
-import { NoiseType, AmbienceType, NoiseSettings, AmbienceSettings } from '@/types/binaural';
+import { NoiseType, AmbienceType, AmbientMusicType, NoiseSettings, AmbienceSettings, AmbientMusicSettings } from '@/types/binaural';
 
 interface AudioLayersProps {
   noise: NoiseSettings;
   ambience: AmbienceSettings;
+  ambientMusic: AmbientMusicSettings;
   onNoiseChange: (noise: NoiseSettings) => void;
   onAmbienceChange: (ambience: AmbienceSettings) => void;
+  onAmbientMusicChange: (ambientMusic: AmbientMusicSettings) => void;
   onPreviewNoise?: (type: NoiseType) => void;
   onStopPreviewNoise?: () => void;
   onPreviewAmbience?: (type: AmbienceType) => void;
   onStopPreviewAmbience?: () => void;
+  onPreviewAmbientMusic?: (type: AmbientMusicType) => void;
+  onStopPreviewAmbientMusic?: () => void;
 }
-
-// Ambience presets optimized for binaural beats
-const ambiencePresets = [
-  {
-    name: 'Deep Focus',
-    description: 'Drone + rain for theta/alpha states',
-    settings: { type: 'drone' as AmbienceType, volume: 0.35 },
-  },
-  {
-    name: 'Nature Calm',
-    description: 'Forest ambience for relaxation',
-    settings: { type: 'forest' as AmbienceType, volume: 0.4 },
-  },
-  {
-    name: 'Ocean Drift',
-    description: 'Waves for deep meditation',
-    settings: { type: 'ocean' as AmbienceType, volume: 0.45 },
-  },
-];
 
 export function AudioLayers({
   noise,
   ambience,
+  ambientMusic,
   onNoiseChange,
   onAmbienceChange,
+  onAmbientMusicChange,
   onPreviewNoise,
   onStopPreviewNoise,
   onPreviewAmbience,
   onStopPreviewAmbience,
+  onPreviewAmbientMusic,
+  onStopPreviewAmbientMusic,
 }: AudioLayersProps) {
   const [previewingNoise, setPreviewingNoise] = useState(false);
   const [previewingAmbience, setPreviewingAmbience] = useState(false);
+  const [previewingAmbientMusic, setPreviewingAmbientMusic] = useState(false);
 
   const noisePct = Math.round(((typeof noise.volume === 'number' && Number.isFinite(noise.volume)) ? noise.volume : 0) * 100);
   const ambiencePct = Math.round(((typeof ambience.volume === 'number' && Number.isFinite(ambience.volume)) ? ambience.volume : 0) * 100);
+  const ambientMusicPct = Math.round(((typeof ambientMusic.volume === 'number' && Number.isFinite(ambientMusic.volume)) ? ambientMusic.volume : 0) * 100);
 
   const handleNoisePreview = () => {
     if (previewingNoise) {
@@ -75,17 +66,13 @@ export function AudioLayers({
     }
   };
 
-  const handleApplyPreset = (preset: typeof ambiencePresets[0]) => {
-    onAmbienceChange({
-      ...ambience,
-      type: preset.settings.type,
-      volume: preset.settings.volume,
-      enabled: true,
-    });
-    // Stop preview if active
-    if (previewingAmbience) {
-      onStopPreviewAmbience?.();
-      setPreviewingAmbience(false);
+  const handleAmbientMusicPreview = () => {
+    if (previewingAmbientMusic) {
+      onStopPreviewAmbientMusic?.();
+      setPreviewingAmbientMusic(false);
+    } else {
+      onPreviewAmbientMusic?.(ambientMusic.type);
+      setPreviewingAmbientMusic(true);
     }
   };
 
@@ -277,28 +264,84 @@ export function AudioLayers({
       {/* Divider */}
       <div className="h-px bg-border" />
 
-      {/* Ambience Presets */}
+      {/* Ambience (Synth Music) Layer */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-            Ambience Presets
-          </Label>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              Ambience
+            </Label>
+          </div>
+          <div className="flex items-center gap-2">
+            {onPreviewAmbientMusic && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleAmbientMusicPreview}
+                className={`h-6 w-6 ${previewingAmbientMusic ? 'text-accent bg-accent/20' : 'text-muted-foreground hover:text-primary'}`}
+                title={previewingAmbientMusic ? 'Stop preview' : 'Preview ambience'}
+              >
+                {previewingAmbientMusic ? <Square className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+              </Button>
+            )}
+            <Switch
+              checked={ambientMusic.enabled}
+              onCheckedChange={(enabled) => onAmbientMusicChange({ ...ambientMusic, enabled })}
+              className="data-[state=checked]:bg-primary"
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          {ambiencePresets.map((preset) => (
-            <button
-              key={preset.name}
-              onClick={() => handleApplyPreset(preset)}
-              className="w-full text-left p-2 rounded-md bg-void hover:bg-muted/50 transition-colors border border-transparent hover:border-primary/30"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-foreground">{preset.name}</span>
-                <span className="text-[10px] text-muted-foreground capitalize">{preset.settings.type}</span>
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-0.5">{preset.description}</p>
-            </button>
-          ))}
+
+        <div className={`space-y-2 ${!ambientMusic.enabled && !previewingAmbientMusic ? 'opacity-50' : ''}`}>
+          <Select
+            value={ambientMusic.type}
+            onValueChange={(type: AmbientMusicType) => {
+              onAmbientMusicChange({ ...ambientMusic, type });
+              if (previewingAmbientMusic) {
+                onStopPreviewAmbientMusic?.();
+                setTimeout(() => onPreviewAmbientMusic?.(type), 50);
+              }
+            }}
+          >
+            <SelectTrigger className="h-8 bg-void border-border text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="soothing">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-3 w-3" />
+                  Soothing
+                </div>
+              </SelectItem>
+              <SelectItem value="focus">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-3 w-3" />
+                  Focus
+                </div>
+              </SelectItem>
+              <SelectItem value="sleep">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-3 w-3" />
+                  Sleep
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="flex items-center gap-2">
+            <Volume2 className="h-3 w-3 text-muted-foreground shrink-0" />
+            <Slider
+              value={[ambientMusicPct]}
+              onValueChange={([v]) => onAmbientMusicChange({ ...ambientMusic, volume: v / 100 })}
+              max={100}
+              step={1}
+              className="flex-1"
+            />
+            <span className="font-mono text-xs text-muted-foreground w-8">
+              {ambientMusicPct}%
+            </span>
+          </div>
         </div>
       </div>
     </div>

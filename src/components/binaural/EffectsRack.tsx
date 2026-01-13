@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Waves, Filter, Move, Music, TreeDeciduous, AudioWaveform } from 'lucide-react';
+import { Waves, Filter, Move, Music, TreeDeciduous, AudioWaveform, Sparkles } from 'lucide-react';
 import { EffectsSettings, EffectsTarget, SingleEffectSettings } from '@/types/binaural';
 
 interface EffectsRackProps {
@@ -14,6 +14,7 @@ const targetLabels: Record<EffectsTarget, { label: string; icon: React.ReactNode
   song: { label: 'Song', icon: <Music className="h-3 w-3" /> },
   soundscape: { label: 'Soundscape', icon: <TreeDeciduous className="h-3 w-3" /> },
   noise: { label: 'Noise', icon: <AudioWaveform className="h-3 w-3" /> },
+  ambientMusic: { label: 'Ambience', icon: <Sparkles className="h-3 w-3" /> },
 };
 
 export function EffectsRack({ effects, onEffectsChange }: EffectsRackProps) {

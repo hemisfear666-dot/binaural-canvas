@@ -1,9 +1,10 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Section, Track, WaveformType, NoiseSettings, AmbienceSettings, EffectsSettings, NoiseType, AmbienceType } from '@/types/binaural';
+import { Section, Track, WaveformType, NoiseSettings, AmbienceSettings, AmbientMusicSettings, EffectsSettings, NoiseType, AmbienceType, AmbientMusicType } from '@/types/binaural';
 import { useAudioMixer } from '@/hooks/useAudioMixer';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { useNoiseGenerator } from '@/hooks/useNoiseGenerator';
 import { useAmbiencePlayer } from '@/hooks/useAmbiencePlayer';
+import { useAmbientMusicGenerator } from '@/hooks/useAmbientMusicGenerator';
 import { useHistory } from '@/hooks/useHistory';
 import { useCustomPresets } from '@/hooks/useCustomPresets';
 import { GlobalControls } from './GlobalControls';
@@ -45,6 +46,12 @@ const defaultAmbienceSettings: AmbienceSettings = {
   enabled: false,
 };
 
+const defaultAmbientMusicSettings: AmbientMusicSettings = {
+  type: 'soothing',
+  volume: 0.35,
+  enabled: false,
+};
+
 const defaultSingleEffects = {
   reverb: { enabled: false, amount: 0.3 },
   lowpass: { enabled: false, frequency: 2000 },
@@ -55,6 +62,7 @@ const defaultEffectsSettings: EffectsSettings = {
   song: { ...defaultSingleEffects },
   soundscape: { ...defaultSingleEffects },
   noise: { ...defaultSingleEffects },
+  ambientMusic: { ...defaultSingleEffects },
 };
 
 const defaultTrack: Track = {
@@ -66,6 +74,7 @@ const defaultTrack: Track = {
   waveform: 'sine',
   noise: defaultNoiseSettings,
   ambience: defaultAmbienceSettings,
+  ambientMusic: defaultAmbientMusicSettings,
   effects: defaultEffectsSettings,
 };
 
@@ -133,12 +142,14 @@ const loadSavedTrack = (): Track => {
               song: parseSingleEffects(parsedEffects.song, defaultSingleEffects),
               soundscape: parseSingleEffects(parsedEffects.soundscape, defaultSingleEffects),
               noise: parseSingleEffects(parsedEffects.noise, defaultSingleEffects),
+              ambientMusic: parseSingleEffects(parsedEffects.ambientMusic, defaultSingleEffects),
             }
           : {
               // Migrate legacy format: apply old effects to song only
               song: parseSingleEffects(parsedEffects, defaultSingleEffects),
               soundscape: { ...defaultSingleEffects },
               noise: { ...defaultSingleEffects },
+              ambientMusic: { ...defaultSingleEffects },
             };
 
         return {
@@ -183,6 +194,7 @@ export function BinauralWorkstation() {
     track.masterVolume,
     track.noise.volume,
     track.ambience.volume,
+    track.ambientMusic.volume,
     track.effects
   );
 
@@ -238,6 +250,13 @@ export function BinauralWorkstation() {
     track.ambience.type
   );
 
+  const { startPreview: startAmbientMusicPreview, stopPreview: stopAmbientMusicPreview } = useAmbientMusicGenerator(
+    mixer.ensure,
+    mixer.getAmbientMusicInput,
+    track.ambientMusic.enabled && playbackState === 'playing',
+    track.ambientMusic.type
+  );
+
   // Preview handlers
   const handlePreviewNoise = useCallback((type: NoiseType) => {
     startNoisePreview(type);
@@ -254,6 +273,14 @@ export function BinauralWorkstation() {
   const handleStopPreviewAmbience = useCallback(() => {
     stopAmbiencePreview();
   }, [stopAmbiencePreview]);
+
+  const handlePreviewAmbientMusic = useCallback((type: AmbientMusicType) => {
+    startAmbientMusicPreview(type);
+  }, [startAmbientMusicPreview]);
+
+  const handleStopPreviewAmbientMusic = useCallback(() => {
+    stopAmbientMusicPreview();
+  }, [stopAmbientMusicPreview]);
 
   const totalDuration = useMemo(() => getTotalDuration(), [getTotalDuration]);
 
@@ -434,6 +461,11 @@ export function BinauralWorkstation() {
   // Ambience settings handler
   const handleAmbienceChange = useCallback((ambience: AmbienceSettings) => {
     setTrack((prev) => ({ ...prev, ambience }));
+  }, [setTrack]);
+
+  // Ambient music settings handler
+  const handleAmbientMusicChange = useCallback((ambientMusic: AmbientMusicSettings) => {
+    setTrack((prev) => ({ ...prev, ambientMusic }));
   }, [setTrack]);
 
   // Effects settings handler
@@ -660,12 +692,16 @@ export function BinauralWorkstation() {
             <AudioLayers
               noise={track.noise}
               ambience={track.ambience}
+              ambientMusic={track.ambientMusic}
               onNoiseChange={handleNoiseChange}
               onAmbienceChange={handleAmbienceChange}
+              onAmbientMusicChange={handleAmbientMusicChange}
               onPreviewNoise={handlePreviewNoise}
               onStopPreviewNoise={handleStopPreviewNoise}
               onPreviewAmbience={handlePreviewAmbience}
               onStopPreviewAmbience={handleStopPreviewAmbience}
+              onPreviewAmbientMusic={handlePreviewAmbientMusic}
+              onStopPreviewAmbientMusic={handleStopPreviewAmbientMusic}
             />
             <ImportExport
               track={track}
@@ -679,12 +715,16 @@ export function BinauralWorkstation() {
             <AudioLayers
               noise={track.noise}
               ambience={track.ambience}
+              ambientMusic={track.ambientMusic}
               onNoiseChange={handleNoiseChange}
               onAmbienceChange={handleAmbienceChange}
+              onAmbientMusicChange={handleAmbientMusicChange}
               onPreviewNoise={handlePreviewNoise}
               onStopPreviewNoise={handleStopPreviewNoise}
               onPreviewAmbience={handlePreviewAmbience}
               onStopPreviewAmbience={handleStopPreviewAmbience}
+              onPreviewAmbientMusic={handlePreviewAmbientMusic}
+              onStopPreviewAmbientMusic={handleStopPreviewAmbientMusic}
             />
             <ImportExport
               track={track}
