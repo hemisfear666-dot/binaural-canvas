@@ -15,6 +15,7 @@ export interface Section {
 export type WaveformType = 'sine' | 'triangle' | 'sawtooth';
 export type NoiseType = 'white' | 'pink' | 'brown';
 export type AmbienceType = 'none' | 'rain' | 'forest' | 'drone' | 'windchimes' | 'gongs' | 'ocean' | 'fan';
+export type AmbientMusicType = 'soothing' | 'focus' | 'sleep';
 
 export interface NoiseSettings {
   type: NoiseType;
@@ -24,6 +25,12 @@ export interface NoiseSettings {
 
 export interface AmbienceSettings {
   type: AmbienceType;
+  volume: number; // 0-1
+  enabled: boolean;
+}
+
+export interface AmbientMusicSettings {
+  type: AmbientMusicType;
   volume: number; // 0-1
   enabled: boolean;
 }
@@ -50,6 +57,7 @@ export interface EffectsSettings {
   song: SingleEffectSettings;
   soundscape: SingleEffectSettings;
   noise: SingleEffectSettings;
+  ambientMusic: SingleEffectSettings;
 }
 
 // Legacy single-target effects (for backwards compatibility during migration)
@@ -69,7 +77,7 @@ export interface LegacyEffectsSettings {
   };
 }
 
-export type EffectsTarget = 'song' | 'soundscape' | 'noise';
+export type EffectsTarget = 'song' | 'soundscape' | 'noise' | 'ambientMusic';
 
 export interface Track {
   title: string;
@@ -80,6 +88,7 @@ export interface Track {
   waveform: WaveformType;
   noise: NoiseSettings;
   ambience: AmbienceSettings;
+  ambientMusic: AmbientMusicSettings;
   effects: EffectsSettings;
 }
 

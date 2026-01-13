@@ -140,6 +140,7 @@ export function useAudioMixer(
   masterVolume: number,
   noiseVolume: number,
   ambienceVolume: number,
+  ambientMusicVolume: number,
   effects: EffectsSettings
 ) {
   const ctxRef = useRef<AudioContext | null>(null);
@@ -149,16 +150,17 @@ export function useAudioMixer(
   const songChainRef = useRef<EffectChain | null>(null);
   const noiseChainRef = useRef<EffectChain | null>(null);
   const ambienceChainRef = useRef<EffectChain | null>(null);
+  const ambientMusicChainRef = useRef<EffectChain | null>(null);
 
   // Master output
   const masterOutRef = useRef<GainNode | null>(null);
 
   const wiredRef = useRef(false);
 
-  const paramsRef = useRef({ masterVolume, noiseVolume, ambienceVolume, effects });
+  const paramsRef = useRef({ masterVolume, noiseVolume, ambienceVolume, ambientMusicVolume, effects });
   useEffect(() => {
-    paramsRef.current = { masterVolume, noiseVolume, ambienceVolume, effects };
-  }, [masterVolume, noiseVolume, ambienceVolume, effects]);
+    paramsRef.current = { masterVolume, noiseVolume, ambienceVolume, ambientMusicVolume, effects };
+  }, [masterVolume, noiseVolume, ambienceVolume, ambientMusicVolume, effects]);
 
   const applyVolumesAndFx = useCallback(() => {
     if (!ctxRef.current) return;
@@ -183,6 +185,9 @@ export function useAudioMixer(
     if (ambienceChainRef.current) {
       ambienceChainRef.current.input.gain.setValueAtTime(clamp01(p.ambienceVolume, 0), ctx.currentTime);
     }
+    if (ambientMusicChainRef.current) {
+      ambientMusicChainRef.current.input.gain.setValueAtTime(clamp01(p.ambientMusicVolume, 0), ctx.currentTime);
+    }
 
     // Apply effects to each chain
     if (songChainRef.current && p.effects?.song) {
@@ -193,6 +198,9 @@ export function useAudioMixer(
     }
     if (ambienceChainRef.current && p.effects?.soundscape) {
       applyEffectsToChain(ctx, ambienceChainRef.current, p.effects.soundscape);
+    }
+    if (ambientMusicChainRef.current && p.effects?.ambientMusic) {
+      applyEffectsToChain(ctx, ambientMusicChainRef.current, p.effects.ambientMusic);
     }
   }, []);
 
@@ -223,12 +231,16 @@ export function useAudioMixer(
     if (!ambienceChainRef.current) {
       ambienceChainRef.current = createEffectChain(ctx, impulseBufferRef.current);
     }
+    if (!ambientMusicChainRef.current) {
+      ambientMusicChainRef.current = createEffectChain(ctx, impulseBufferRef.current);
+    }
 
     // Wire chains to master output
     if (!wiredRef.current) {
       songChainRef.current.output.connect(masterOutRef.current);
       noiseChainRef.current.output.connect(masterOutRef.current);
       ambienceChainRef.current.output.connect(masterOutRef.current);
+      ambientMusicChainRef.current.output.connect(masterOutRef.current);
       wiredRef.current = true;
     }
 
@@ -258,11 +270,16 @@ export function useAudioMixer(
     return ambienceChainRef.current!.input;
   }, [ensure]);
 
+  const getAmbientMusicInput = useCallback(() => {
+    ensure();
+    return ambientMusicChainRef.current!.input;
+  }, [ensure]);
+
   // If context exists, keep params applied live
   useEffect(() => {
     if (!ctxRef.current) return;
     applyVolumesAndFx();
-  }, [applyVolumesAndFx, masterVolume, noiseVolume, ambienceVolume, effects]);
+  }, [applyVolumesAndFx, masterVolume, noiseVolume, ambienceVolume, ambientMusicVolume, effects]);
 
   // Kill all sound immediately (including reverb tail)
   const killAll = useCallback(() => {
@@ -273,14 +290,16 @@ export function useAudioMixer(
     songChainRef.current?.input.gain.setValueAtTime(0, ctx.currentTime);
     noiseChainRef.current?.input.gain.setValueAtTime(0, ctx.currentTime);
     ambienceChainRef.current?.input.gain.setValueAtTime(0, ctx.currentTime);
+    ambientMusicChainRef.current?.input.gain.setValueAtTime(0, ctx.currentTime);
 
     // Zero out reverb wet signals to kill tails
     songChainRef.current?.wetGain.gain.setValueAtTime(0, ctx.currentTime);
     noiseChainRef.current?.wetGain.gain.setValueAtTime(0, ctx.currentTime);
     ambienceChainRef.current?.wetGain.gain.setValueAtTime(0, ctx.currentTime);
+    ambientMusicChainRef.current?.wetGain.gain.setValueAtTime(0, ctx.currentTime);
 
     // Stop autopan oscillators
-    [songChainRef, noiseChainRef, ambienceChainRef].forEach((chainRef) => {
+    [songChainRef, noiseChainRef, ambienceChainRef, ambientMusicChainRef].forEach((chainRef) => {
       const chain = chainRef.current;
       if (chain?.autoPanOsc) {
         try {
@@ -312,6 +331,7 @@ export function useAudioMixer(
     getToneInput,
     getNoiseInput,
     getAmbienceInput,
+    getAmbientMusicInput,
     killAll,
     restore,
   };
