@@ -4,7 +4,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Waves, Trees, Cloud, Volume2, Play, Square, Music, Bell } from 'lucide-react';
+import { Waves, Trees, Cloud, Volume2, Play, Square, Music, Bell, Wind, Fan, Sparkles } from 'lucide-react';
 import { NoiseType, AmbienceType, NoiseSettings, AmbienceSettings } from '@/types/binaural';
 
 interface AudioLayersProps {
@@ -17,6 +17,25 @@ interface AudioLayersProps {
   onPreviewAmbience?: (type: AmbienceType) => void;
   onStopPreviewAmbience?: () => void;
 }
+
+// Ambience presets optimized for binaural beats
+const ambiencePresets = [
+  {
+    name: 'Deep Focus',
+    description: 'Drone + rain for theta/alpha states',
+    settings: { type: 'drone' as AmbienceType, volume: 0.35 },
+  },
+  {
+    name: 'Nature Calm',
+    description: 'Forest ambience for relaxation',
+    settings: { type: 'forest' as AmbienceType, volume: 0.4 },
+  },
+  {
+    name: 'Ocean Drift',
+    description: 'Waves for deep meditation',
+    settings: { type: 'ocean' as AmbienceType, volume: 0.45 },
+  },
+];
 
 export function AudioLayers({
   noise,
@@ -53,6 +72,20 @@ export function AudioLayers({
         onPreviewAmbience?.(ambience.type);
         setPreviewingAmbience(true);
       }
+    }
+  };
+
+  const handleApplyPreset = (preset: typeof ambiencePresets[0]) => {
+    onAmbienceChange({
+      ...ambience,
+      type: preset.settings.type,
+      volume: preset.settings.volume,
+      enabled: true,
+    });
+    // Stop preview if active
+    if (previewingAmbience) {
+      onStopPreviewAmbience?.();
+      setPreviewingAmbience(false);
     }
   };
 
@@ -131,7 +164,7 @@ export function AudioLayers({
       {/* Divider */}
       <div className="h-px bg-border" />
 
-      {/* Ambience Layer */}
+      {/* Soundscape Layer */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -192,6 +225,12 @@ export function AudioLayers({
                   Forest
                 </div>
               </SelectItem>
+              <SelectItem value="ocean">
+                <div className="flex items-center gap-2">
+                  <Waves className="h-3 w-3" />
+                  Ocean Waves
+                </div>
+              </SelectItem>
               <SelectItem value="drone">
                 <div className="flex items-center gap-2">
                   <Waves className="h-3 w-3" />
@@ -210,6 +249,12 @@ export function AudioLayers({
                   Gongs
                 </div>
               </SelectItem>
+              <SelectItem value="fan">
+                <div className="flex items-center gap-2">
+                  <Fan className="h-3 w-3" />
+                  Fan
+                </div>
+              </SelectItem>
             </SelectContent>
           </Select>
 
@@ -226,6 +271,34 @@ export function AudioLayers({
               {ambiencePct}%
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* Divider */}
+      <div className="h-px bg-border" />
+
+      {/* Ambience Presets */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+            Ambience Presets
+          </Label>
+        </div>
+        <div className="space-y-2">
+          {ambiencePresets.map((preset) => (
+            <button
+              key={preset.name}
+              onClick={() => handleApplyPreset(preset)}
+              className="w-full text-left p-2 rounded-md bg-void hover:bg-muted/50 transition-colors border border-transparent hover:border-primary/30"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-foreground">{preset.name}</span>
+                <span className="text-[10px] text-muted-foreground capitalize">{preset.settings.type}</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{preset.description}</p>
+            </button>
+          ))}
         </div>
       </div>
     </div>

@@ -1,35 +1,58 @@
+import { useState } from 'react';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Waves, Filter, Move } from 'lucide-react';
-
-export interface EffectsSettings {
-  reverb: {
-    enabled: boolean;
-    amount: number; // 0-1
-  };
-  lowpass: {
-    enabled: boolean;
-    frequency: number; // Hz
-  };
-  autoPan: {
-    enabled: boolean;
-    rate: number; // Hz
-    depth: number; // 0-1
-  };
-}
+import { Waves, Filter, Move, Music, TreeDeciduous, AudioWaveform } from 'lucide-react';
+import { EffectsSettings, EffectsTarget, SingleEffectSettings } from '@/types/binaural';
 
 interface EffectsRackProps {
   effects: EffectsSettings;
   onEffectsChange: (effects: EffectsSettings) => void;
 }
 
+const targetLabels: Record<EffectsTarget, { label: string; icon: React.ReactNode }> = {
+  song: { label: 'Song', icon: <Music className="h-3 w-3" /> },
+  soundscape: { label: 'Soundscape', icon: <TreeDeciduous className="h-3 w-3" /> },
+  noise: { label: 'Noise', icon: <AudioWaveform className="h-3 w-3" /> },
+};
+
 export function EffectsRack({ effects, onEffectsChange }: EffectsRackProps) {
+  const [activeTarget, setActiveTarget] = useState<EffectsTarget>('song');
+
+  const currentEffects: SingleEffectSettings = effects[activeTarget];
+
+  const handleEffectChange = (newSettings: SingleEffectSettings) => {
+    onEffectsChange({
+      ...effects,
+      [activeTarget]: newSettings,
+    });
+  };
+
   return (
     <div className="panel rounded-lg p-3 sm:p-4 space-y-4">
-      <h3 className="text-xs uppercase tracking-widest text-primary font-medium">
-        Effects Rack
-      </h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs uppercase tracking-widest text-primary font-medium">
+          Effects Rack
+        </h3>
+      </div>
+
+      {/* Target Selector */}
+      <div className="flex gap-1 p-1 bg-void rounded-lg">
+        {(Object.keys(targetLabels) as EffectsTarget[]).map((target) => (
+          <button
+            key={target}
+            onClick={() => setActiveTarget(target)}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-all ${
+              activeTarget === target
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+            }`}
+          >
+            {targetLabels[target].icon}
+            <span className="hidden sm:inline">{targetLabels[target].label}</span>
+          </button>
+        ))}
+      </div>
 
       {/* Reverb */}
       <div className="space-y-2">
@@ -41,27 +64,27 @@ export function EffectsRack({ effects, onEffectsChange }: EffectsRackProps) {
             </Label>
           </div>
           <Switch
-            checked={effects.reverb.enabled}
+            checked={currentEffects.reverb.enabled}
             onCheckedChange={(enabled) =>
-              onEffectsChange({ ...effects, reverb: { ...effects.reverb, enabled } })
+              handleEffectChange({ ...currentEffects, reverb: { ...currentEffects.reverb, enabled } })
             }
             className="data-[state=checked]:bg-primary"
           />
         </div>
-        <div className={`flex items-center gap-2 ${!effects.reverb.enabled ? 'opacity-50' : ''}`}>
+        <div className={`flex items-center gap-2 ${!currentEffects.reverb.enabled ? 'opacity-50' : ''}`}>
           <span className="text-[10px] text-muted-foreground w-12">Amount</span>
           <Slider
-            value={[effects.reverb.amount * 100]}
+            value={[currentEffects.reverb.amount * 100]}
             onValueChange={([v]) =>
-              onEffectsChange({ ...effects, reverb: { ...effects.reverb, amount: v / 100 } })
+              handleEffectChange({ ...currentEffects, reverb: { ...currentEffects.reverb, amount: v / 100 } })
             }
             max={100}
             step={1}
-            disabled={!effects.reverb.enabled}
+            disabled={!currentEffects.reverb.enabled}
             className="flex-1"
           />
           <span className="font-mono text-xs text-muted-foreground w-8">
-            {Math.round(effects.reverb.amount * 100)}%
+            {Math.round(currentEffects.reverb.amount * 100)}%
           </span>
         </div>
       </div>
@@ -79,28 +102,28 @@ export function EffectsRack({ effects, onEffectsChange }: EffectsRackProps) {
             </Label>
           </div>
           <Switch
-            checked={effects.lowpass.enabled}
+            checked={currentEffects.lowpass.enabled}
             onCheckedChange={(enabled) =>
-              onEffectsChange({ ...effects, lowpass: { ...effects.lowpass, enabled } })
+              handleEffectChange({ ...currentEffects, lowpass: { ...currentEffects.lowpass, enabled } })
             }
             className="data-[state=checked]:bg-accent"
           />
         </div>
-        <div className={`flex items-center gap-2 ${!effects.lowpass.enabled ? 'opacity-50' : ''}`}>
+        <div className={`flex items-center gap-2 ${!currentEffects.lowpass.enabled ? 'opacity-50' : ''}`}>
           <span className="text-[10px] text-muted-foreground w-12">Cutoff</span>
           <Slider
-            value={[effects.lowpass.frequency]}
+            value={[currentEffects.lowpass.frequency]}
             onValueChange={([v]) =>
-              onEffectsChange({ ...effects, lowpass: { ...effects.lowpass, frequency: v } })
+              handleEffectChange({ ...currentEffects, lowpass: { ...currentEffects.lowpass, frequency: v } })
             }
             min={100}
             max={8000}
             step={50}
-            disabled={!effects.lowpass.enabled}
+            disabled={!currentEffects.lowpass.enabled}
             className="flex-1"
           />
           <span className="font-mono text-xs text-muted-foreground w-14">
-            {effects.lowpass.frequency}Hz
+            {currentEffects.lowpass.frequency}Hz
           </span>
         </div>
       </div>
@@ -118,45 +141,45 @@ export function EffectsRack({ effects, onEffectsChange }: EffectsRackProps) {
             </Label>
           </div>
           <Switch
-            checked={effects.autoPan.enabled}
+            checked={currentEffects.autoPan.enabled}
             onCheckedChange={(enabled) =>
-              onEffectsChange({ ...effects, autoPan: { ...effects.autoPan, enabled } })
+              handleEffectChange({ ...currentEffects, autoPan: { ...currentEffects.autoPan, enabled } })
             }
             className="data-[state=checked]:bg-primary"
           />
         </div>
-        <div className={`space-y-2 ${!effects.autoPan.enabled ? 'opacity-50' : ''}`}>
+        <div className={`space-y-2 ${!currentEffects.autoPan.enabled ? 'opacity-50' : ''}`}>
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-muted-foreground w-12">Rate</span>
             <Slider
-              value={[effects.autoPan.rate * 100]}
+              value={[currentEffects.autoPan.rate * 100]}
               onValueChange={([v]) =>
-                onEffectsChange({ ...effects, autoPan: { ...effects.autoPan, rate: v / 100 } })
+                handleEffectChange({ ...currentEffects, autoPan: { ...currentEffects.autoPan, rate: v / 100 } })
               }
               min={1}
               max={50}
               step={1}
-              disabled={!effects.autoPan.enabled}
+              disabled={!currentEffects.autoPan.enabled}
               className="flex-1"
             />
             <span className="font-mono text-xs text-muted-foreground w-12">
-              {effects.autoPan.rate.toFixed(2)}Hz
+              {currentEffects.autoPan.rate.toFixed(2)}Hz
             </span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-muted-foreground w-12">Depth</span>
             <Slider
-              value={[effects.autoPan.depth * 100]}
+              value={[currentEffects.autoPan.depth * 100]}
               onValueChange={([v]) =>
-                onEffectsChange({ ...effects, autoPan: { ...effects.autoPan, depth: v / 100 } })
+                handleEffectChange({ ...currentEffects, autoPan: { ...currentEffects.autoPan, depth: v / 100 } })
               }
               max={100}
               step={1}
-              disabled={!effects.autoPan.enabled}
+              disabled={!currentEffects.autoPan.enabled}
               className="flex-1"
             />
             <span className="font-mono text-xs text-muted-foreground w-8">
-              {Math.round(effects.autoPan.depth * 100)}%
+              {Math.round(currentEffects.autoPan.depth * 100)}%
             </span>
           </div>
         </div>

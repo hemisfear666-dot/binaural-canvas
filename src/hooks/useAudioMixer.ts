@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import type { EffectsSettings } from "@/types/binaural";
+import type { EffectsSettings, SingleEffectSettings } from "@/types/binaural";
 import { resumeAudioContext } from "@/lib/audio/resumeAudioContext";
 
 function createHallImpulse(ctx: AudioContext, seconds = 7, decay = 3.5) {
@@ -18,6 +18,124 @@ function createHallImpulse(ctx: AudioContext, seconds = 7, decay = 3.5) {
   return impulse;
 }
 
+// Per-target effect chain
+interface EffectChain {
+  input: GainNode;
+  panner: StereoPannerNode;
+  dryGain: GainNode;
+  reverbSend: GainNode;
+  convolver: ConvolverNode;
+  wetGain: GainNode;
+  lowpass: BiquadFilterNode;
+  output: GainNode;
+  autoPanOsc: OscillatorNode | null;
+  autoPanGain: GainNode | null;
+}
+
+function createEffectChain(ctx: AudioContext, impulseBuffer: AudioBuffer): EffectChain {
+  const input = ctx.createGain();
+  const panner = ctx.createStereoPanner();
+  const dryGain = ctx.createGain();
+  const reverbSend = ctx.createGain();
+  const convolver = ctx.createConvolver();
+  convolver.buffer = impulseBuffer;
+  const wetGain = ctx.createGain();
+  const lowpass = ctx.createBiquadFilter();
+  lowpass.type = "lowpass";
+  lowpass.Q.value = 0.7;
+  const output = ctx.createGain();
+
+  // Routing: input -> panner -> (dry + reverb send) -> lowpass -> output
+  input.connect(panner);
+  panner.connect(dryGain);
+  dryGain.connect(lowpass);
+  
+  panner.connect(reverbSend);
+  reverbSend.connect(convolver);
+  convolver.connect(wetGain);
+  wetGain.connect(lowpass);
+  
+  lowpass.connect(output);
+
+  return {
+    input,
+    panner,
+    dryGain,
+    reverbSend,
+    convolver,
+    wetGain,
+    lowpass,
+    output,
+    autoPanOsc: null,
+    autoPanGain: null,
+  };
+}
+
+function applyEffectsToChain(
+  ctx: AudioContext,
+  chain: EffectChain,
+  settings: SingleEffectSettings
+) {
+  const clamp01 = (v: unknown, fallback: number) => {
+    const n = typeof v === "number" && Number.isFinite(v) ? v : fallback;
+    return Math.max(0, Math.min(1, n));
+  };
+
+  // Reverb
+  const amount = clamp01(settings?.reverb?.amount, 0);
+  const send = settings?.reverb?.enabled ? amount : 0;
+  chain.reverbSend.gain.setValueAtTime(send, ctx.currentTime);
+
+  // Lowpass
+  const nyquist = ctx.sampleRate / 2;
+  const raw = settings?.lowpass?.frequency;
+  const freq = typeof raw === "number" && Number.isFinite(raw) ? raw : nyquist;
+  const target = settings?.lowpass?.enabled ? Math.max(20, Math.min(nyquist, freq)) : nyquist;
+  chain.lowpass.frequency.setValueAtTime(target, ctx.currentTime);
+
+  // Auto-pan
+  if (settings?.autoPan?.enabled) {
+    const rateRaw = settings.autoPan.rate;
+    const rate = typeof rateRaw === "number" && Number.isFinite(rateRaw) ? rateRaw : 0.1;
+    const depth = clamp01(settings.autoPan.depth, 0.5);
+
+    if (!chain.autoPanOsc || !chain.autoPanGain) {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = rate;
+      g.gain.value = depth;
+      osc.connect(g);
+      g.connect(chain.panner.pan);
+      osc.start();
+      chain.autoPanOsc = osc;
+      chain.autoPanGain = g;
+    } else {
+      chain.autoPanOsc.frequency.setValueAtTime(rate, ctx.currentTime);
+      chain.autoPanGain.gain.setValueAtTime(depth, ctx.currentTime);
+    }
+  } else {
+    if (chain.autoPanOsc) {
+      try {
+        chain.autoPanOsc.stop();
+        chain.autoPanOsc.disconnect();
+      } catch {
+        // ignore
+      }
+      chain.autoPanOsc = null;
+    }
+    if (chain.autoPanGain) {
+      try {
+        chain.autoPanGain.disconnect();
+      } catch {
+        // ignore
+      }
+      chain.autoPanGain = null;
+    }
+    chain.panner.pan.setValueAtTime(0, ctx.currentTime);
+  }
+}
+
 export function useAudioMixer(
   masterVolume: number,
   noiseVolume: number,
@@ -25,26 +143,15 @@ export function useAudioMixer(
   effects: EffectsSettings
 ) {
   const ctxRef = useRef<AudioContext | null>(null);
+  const impulseBufferRef = useRef<AudioBuffer | null>(null);
 
-  const toneBusRef = useRef<GainNode | null>(null);
-  const noiseBusRef = useRef<GainNode | null>(null);
-  const ambienceBusRef = useRef<GainNode | null>(null);
+  // Per-target effect chains
+  const songChainRef = useRef<EffectChain | null>(null);
+  const noiseChainRef = useRef<EffectChain | null>(null);
+  const ambienceChainRef = useRef<EffectChain | null>(null);
 
-  const noisePannerRef = useRef<StereoPannerNode | null>(null);
-
-  const sumRef = useRef<GainNode | null>(null);
-  const dryRef = useRef<GainNode | null>(null);
-  const fxSumRef = useRef<GainNode | null>(null);
-
-  const reverbSendRef = useRef<GainNode | null>(null);
-  const convolverRef = useRef<ConvolverNode | null>(null);
-  const wetRef = useRef<GainNode | null>(null);
-
-  const lowpassRef = useRef<BiquadFilterNode | null>(null);
-  const outRef = useRef<GainNode | null>(null);
-
-  const autoPanOscRef = useRef<OscillatorNode | null>(null);
-  const autoPanGainRef = useRef<GainNode | null>(null);
+  // Master output
+  const masterOutRef = useRef<GainNode | null>(null);
 
   const wiredRef = useRef(false);
 
@@ -63,69 +170,29 @@ export function useAudioMixer(
       return Math.max(0, Math.min(1, n));
     };
 
-    // Buses
-    toneBusRef.current?.gain.setValueAtTime(clamp01(p.masterVolume, 0.5), ctx.currentTime);
-    noiseBusRef.current?.gain.setValueAtTime(clamp01(p.noiseVolume, 0), ctx.currentTime);
-    ambienceBusRef.current?.gain.setValueAtTime(clamp01(p.ambienceVolume, 0), ctx.currentTime);
+    // Master volume
+    masterOutRef.current?.gain.setValueAtTime(clamp01(p.masterVolume, 0.5), ctx.currentTime);
 
-    // Reverb
-    if (reverbSendRef.current) {
-      const amount = clamp01(p.effects?.reverb?.amount, 0);
-      const send = p.effects?.reverb?.enabled ? amount : 0;
-      reverbSendRef.current.gain.setValueAtTime(send, ctx.currentTime);
+    // Per-chain volumes
+    if (songChainRef.current) {
+      songChainRef.current.input.gain.setValueAtTime(1, ctx.currentTime); // Song uses section volumes
+    }
+    if (noiseChainRef.current) {
+      noiseChainRef.current.input.gain.setValueAtTime(clamp01(p.noiseVolume, 0), ctx.currentTime);
+    }
+    if (ambienceChainRef.current) {
+      ambienceChainRef.current.input.gain.setValueAtTime(clamp01(p.ambienceVolume, 0), ctx.currentTime);
     }
 
-    // Lowpass (bypass by Nyquist)
-    if (lowpassRef.current) {
-      const nyquist = ctx.sampleRate / 2;
-      const raw = p.effects?.lowpass?.frequency;
-      const freq = typeof raw === "number" && Number.isFinite(raw) ? raw : nyquist;
-      const target = p.effects?.lowpass?.enabled ? Math.max(20, Math.min(nyquist, freq)) : nyquist;
-      lowpassRef.current.frequency.setValueAtTime(target, ctx.currentTime);
+    // Apply effects to each chain
+    if (songChainRef.current && p.effects?.song) {
+      applyEffectsToChain(ctx, songChainRef.current, p.effects.song);
     }
-
-    // Noise-only autopan
-    if (noisePannerRef.current) {
-      if (p.effects?.autoPan?.enabled) {
-        const rateRaw = p.effects.autoPan.rate;
-        const rate = typeof rateRaw === "number" && Number.isFinite(rateRaw) ? rateRaw : 0.1;
-        const depth = clamp01(p.effects.autoPan.depth, 0.5);
-
-        if (!autoPanOscRef.current || !autoPanGainRef.current) {
-          const osc = ctx.createOscillator();
-          const g = ctx.createGain();
-          osc.type = "sine";
-          osc.frequency.value = rate;
-          g.gain.value = depth;
-          osc.connect(g);
-          g.connect(noisePannerRef.current.pan);
-          osc.start();
-          autoPanOscRef.current = osc;
-          autoPanGainRef.current = g;
-        } else {
-          autoPanOscRef.current.frequency.setValueAtTime(rate, ctx.currentTime);
-          autoPanGainRef.current.gain.setValueAtTime(depth, ctx.currentTime);
-        }
-      } else {
-        if (autoPanOscRef.current) {
-          try {
-            autoPanOscRef.current.stop();
-            autoPanOscRef.current.disconnect();
-          } catch {
-            // ignore
-          }
-          autoPanOscRef.current = null;
-        }
-        if (autoPanGainRef.current) {
-          try {
-            autoPanGainRef.current.disconnect();
-          } catch {
-            // ignore
-          }
-          autoPanGainRef.current = null;
-        }
-        noisePannerRef.current.pan.setValueAtTime(0, ctx.currentTime);
-      }
+    if (noiseChainRef.current && p.effects?.noise) {
+      applyEffectsToChain(ctx, noiseChainRef.current, p.effects.noise);
+    }
+    if (ambienceChainRef.current && p.effects?.soundscape) {
+      applyEffectsToChain(ctx, ambienceChainRef.current, p.effects.soundscape);
     }
   }, []);
 
@@ -135,52 +202,33 @@ export function useAudioMixer(
     }
     const ctx = ctxRef.current;
 
-    if (!toneBusRef.current) toneBusRef.current = ctx.createGain();
-    if (!noiseBusRef.current) noiseBusRef.current = ctx.createGain();
-    if (!ambienceBusRef.current) ambienceBusRef.current = ctx.createGain();
-
-    if (!noisePannerRef.current) noisePannerRef.current = ctx.createStereoPanner();
-
-    if (!sumRef.current) sumRef.current = ctx.createGain();
-    if (!dryRef.current) dryRef.current = ctx.createGain();
-    if (!fxSumRef.current) fxSumRef.current = ctx.createGain();
-
-    if (!reverbSendRef.current) reverbSendRef.current = ctx.createGain();
-    if (!convolverRef.current) {
-      convolverRef.current = ctx.createConvolver();
-      convolverRef.current.buffer = createHallImpulse(ctx);
-    }
-    if (!wetRef.current) wetRef.current = ctx.createGain();
-
-    if (!lowpassRef.current) {
-      lowpassRef.current = ctx.createBiquadFilter();
-      lowpassRef.current.type = "lowpass";
-      lowpassRef.current.Q.value = 0.7;
+    // Create impulse buffer once
+    if (!impulseBufferRef.current) {
+      impulseBufferRef.current = createHallImpulse(ctx);
     }
 
-    if (!outRef.current) outRef.current = ctx.createGain();
+    // Create master output
+    if (!masterOutRef.current) {
+      masterOutRef.current = ctx.createGain();
+      masterOutRef.current.connect(ctx.destination);
+    }
 
+    // Create effect chains for each target
+    if (!songChainRef.current) {
+      songChainRef.current = createEffectChain(ctx, impulseBufferRef.current);
+    }
+    if (!noiseChainRef.current) {
+      noiseChainRef.current = createEffectChain(ctx, impulseBufferRef.current);
+    }
+    if (!ambienceChainRef.current) {
+      ambienceChainRef.current = createEffectChain(ctx, impulseBufferRef.current);
+    }
+
+    // Wire chains to master output
     if (!wiredRef.current) {
-      // Layer routing
-      toneBusRef.current.connect(sumRef.current);
-      ambienceBusRef.current.connect(sumRef.current);
-
-      noiseBusRef.current.connect(noisePannerRef.current);
-      noisePannerRef.current.connect(sumRef.current);
-
-      // FX routing
-      sumRef.current.connect(dryRef.current);
-      dryRef.current.connect(fxSumRef.current);
-
-      sumRef.current.connect(reverbSendRef.current);
-      reverbSendRef.current.connect(convolverRef.current);
-      convolverRef.current.connect(wetRef.current);
-      wetRef.current.connect(fxSumRef.current);
-
-      fxSumRef.current.connect(lowpassRef.current);
-      lowpassRef.current.connect(outRef.current);
-      outRef.current.connect(ctx.destination);
-
+      songChainRef.current.output.connect(masterOutRef.current);
+      noiseChainRef.current.output.connect(masterOutRef.current);
+      ambienceChainRef.current.output.connect(masterOutRef.current);
       wiredRef.current = true;
     }
 
@@ -197,17 +245,17 @@ export function useAudioMixer(
 
   const getToneInput = useCallback(() => {
     ensure();
-    return toneBusRef.current!;
+    return songChainRef.current!.input;
   }, [ensure]);
 
   const getNoiseInput = useCallback(() => {
     ensure();
-    return noiseBusRef.current!;
+    return noiseChainRef.current!.input;
   }, [ensure]);
 
   const getAmbienceInput = useCallback(() => {
     ensure();
-    return ambienceBusRef.current!;
+    return ambienceChainRef.current!.input;
   }, [ensure]);
 
   // If context exists, keep params applied live
@@ -221,33 +269,37 @@ export function useAudioMixer(
     if (!ctxRef.current) return;
     const ctx = ctxRef.current;
 
-    // Zero out all buses immediately
-    toneBusRef.current?.gain.setValueAtTime(0, ctx.currentTime);
-    noiseBusRef.current?.gain.setValueAtTime(0, ctx.currentTime);
-    ambienceBusRef.current?.gain.setValueAtTime(0, ctx.currentTime);
+    // Zero out all chain inputs immediately
+    songChainRef.current?.input.gain.setValueAtTime(0, ctx.currentTime);
+    noiseChainRef.current?.input.gain.setValueAtTime(0, ctx.currentTime);
+    ambienceChainRef.current?.input.gain.setValueAtTime(0, ctx.currentTime);
 
-    // Zero out reverb wet signal to kill tail
-    wetRef.current?.gain.setValueAtTime(0, ctx.currentTime);
-    reverbSendRef.current?.gain.setValueAtTime(0, ctx.currentTime);
+    // Zero out reverb wet signals to kill tails
+    songChainRef.current?.wetGain.gain.setValueAtTime(0, ctx.currentTime);
+    noiseChainRef.current?.wetGain.gain.setValueAtTime(0, ctx.currentTime);
+    ambienceChainRef.current?.wetGain.gain.setValueAtTime(0, ctx.currentTime);
 
-    // Stop autopan
-    if (autoPanOscRef.current) {
-      try {
-        autoPanOscRef.current.stop();
-        autoPanOscRef.current.disconnect();
-      } catch {
-        // ignore
+    // Stop autopan oscillators
+    [songChainRef, noiseChainRef, ambienceChainRef].forEach((chainRef) => {
+      const chain = chainRef.current;
+      if (chain?.autoPanOsc) {
+        try {
+          chain.autoPanOsc.stop();
+          chain.autoPanOsc.disconnect();
+        } catch {
+          // ignore
+        }
+        chain.autoPanOsc = null;
       }
-      autoPanOscRef.current = null;
-    }
-    if (autoPanGainRef.current) {
-      try {
-        autoPanGainRef.current.disconnect();
-      } catch {
-        // ignore
+      if (chain?.autoPanGain) {
+        try {
+          chain.autoPanGain.disconnect();
+        } catch {
+          // ignore
+        }
+        chain.autoPanGain = null;
       }
-      autoPanGainRef.current = null;
-    }
+    });
   }, []);
 
   // Restore volumes after killAll

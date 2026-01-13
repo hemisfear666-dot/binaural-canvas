@@ -654,6 +654,235 @@ function createGongs(ctx: AudioContext, destination: AudioNode): RunningAmbience
   return { type: "gongs", sources, nodes, stop };
 }
 
+function createOcean(ctx: AudioContext, destination: AudioNode): RunningAmbience {
+  const sources: (AudioScheduledSourceNode | OscillatorNode)[] = [];
+  const nodes: AudioNode[] = [];
+
+  const out = ctx.createGain();
+  out.gain.value = 1;
+  nodes.push(out);
+
+  // Ocean base - filtered noise with slow amplitude modulation for waves
+  const waveBed = ctx.createBufferSource();
+  waveBed.buffer = createWhiteNoiseBuffer(ctx, 4.0);
+  waveBed.loop = true;
+
+  const waveLp = ctx.createBiquadFilter();
+  waveLp.type = "lowpass";
+  waveLp.frequency.value = 800;
+  waveLp.Q.value = 0.4;
+
+  const waveHp = ctx.createBiquadFilter();
+  waveHp.type = "highpass";
+  waveHp.frequency.value = 80;
+
+  const waveGain = ctx.createGain();
+  waveGain.gain.value = 0.25;
+
+  // Slow wave amplitude LFO
+  const waveLfo = ctx.createOscillator();
+  waveLfo.type = "sine";
+  waveLfo.frequency.value = 0.08; // Very slow waves
+
+  const waveLfoGain = ctx.createGain();
+  waveLfoGain.gain.value = 0.12;
+
+  waveLfo.connect(waveLfoGain);
+  waveLfoGain.connect(waveGain.gain);
+
+  waveBed.connect(waveLp);
+  waveLp.connect(waveHp);
+  waveHp.connect(waveGain);
+  waveGain.connect(out);
+
+  sources.push(waveBed, waveLfo);
+  nodes.push(waveLp, waveHp, waveGain, waveLfoGain);
+
+  waveBed.start();
+  waveLfo.start();
+
+  // Foam/surf layer - higher frequency crashing
+  const foamBed = ctx.createBufferSource();
+  foamBed.buffer = createWhiteNoiseBuffer(ctx, 2.0);
+  foamBed.loop = true;
+
+  const foamBp = ctx.createBiquadFilter();
+  foamBp.type = "bandpass";
+  foamBp.frequency.value = 2500;
+  foamBp.Q.value = 0.8;
+
+  const foamGain = ctx.createGain();
+  foamGain.gain.value = 0.08;
+
+  // Foam LFO slightly offset from wave
+  const foamLfo = ctx.createOscillator();
+  foamLfo.type = "sine";
+  foamLfo.frequency.value = 0.12;
+
+  const foamLfoGain = ctx.createGain();
+  foamLfoGain.gain.value = 0.06;
+
+  foamLfo.connect(foamLfoGain);
+  foamLfoGain.connect(foamGain.gain);
+
+  foamBed.connect(foamBp);
+  foamBp.connect(foamGain);
+  foamGain.connect(out);
+
+  sources.push(foamBed, foamLfo);
+  nodes.push(foamBp, foamGain, foamLfoGain);
+
+  foamBed.start();
+  foamLfo.start();
+
+  // Deep undertow rumble
+  const rumble = ctx.createOscillator();
+  rumble.type = "sine";
+  rumble.frequency.value = 35;
+
+  const rumbleGain = ctx.createGain();
+  rumbleGain.gain.value = 0.06;
+
+  const rumbleLfo = ctx.createOscillator();
+  rumbleLfo.type = "sine";
+  rumbleLfo.frequency.value = 0.05;
+
+  const rumbleLfoGain = ctx.createGain();
+  rumbleLfoGain.gain.value = 0.03;
+
+  rumbleLfo.connect(rumbleLfoGain);
+  rumbleLfoGain.connect(rumbleGain.gain);
+
+  rumble.connect(rumbleGain);
+  rumbleGain.connect(out);
+
+  sources.push(rumble, rumbleLfo);
+  nodes.push(rumbleGain, rumbleLfoGain);
+
+  rumble.start();
+  rumbleLfo.start();
+
+  out.connect(destination);
+
+  const stop = () => {
+    for (const s of sources) {
+      try { s.stop(); } catch { /* ignore */ }
+    }
+    for (const n of nodes) {
+      try { n.disconnect(); } catch { /* ignore */ }
+    }
+    try { out.disconnect(); } catch { /* ignore */ }
+  };
+
+  return { type: "ocean", sources, nodes, stop };
+}
+
+function createFan(ctx: AudioContext, destination: AudioNode): RunningAmbience {
+  const sources: (AudioScheduledSourceNode | OscillatorNode)[] = [];
+  const nodes: AudioNode[] = [];
+
+  const out = ctx.createGain();
+  out.gain.value = 1;
+  nodes.push(out);
+
+  // Main fan noise - filtered white noise with characteristic hum
+  const fanNoise = ctx.createBufferSource();
+  fanNoise.buffer = createWhiteNoiseBuffer(ctx, 2.0);
+  fanNoise.loop = true;
+
+  // Bandpass for that characteristic fan sound
+  const fanBp = ctx.createBiquadFilter();
+  fanBp.type = "bandpass";
+  fanBp.frequency.value = 350;
+  fanBp.Q.value = 0.3;
+
+  // Low pass to remove harshness
+  const fanLp = ctx.createBiquadFilter();
+  fanLp.type = "lowpass";
+  fanLp.frequency.value = 1200;
+
+  const fanGain = ctx.createGain();
+  fanGain.gain.value = 0.22;
+
+  fanNoise.connect(fanBp);
+  fanBp.connect(fanLp);
+  fanLp.connect(fanGain);
+  fanGain.connect(out);
+
+  sources.push(fanNoise);
+  nodes.push(fanBp, fanLp, fanGain);
+  fanNoise.start();
+
+  // Motor hum (very subtle low frequency)
+  const hum = ctx.createOscillator();
+  hum.type = "sine";
+  hum.frequency.value = 60; // 60Hz motor hum
+
+  const humGain = ctx.createGain();
+  humGain.gain.value = 0.015;
+
+  hum.connect(humGain);
+  humGain.connect(out);
+
+  sources.push(hum);
+  nodes.push(humGain);
+  hum.start();
+
+  // Blade whoosh - subtle periodic emphasis
+  const whooshLfo = ctx.createOscillator();
+  whooshLfo.type = "sine";
+  whooshLfo.frequency.value = 2.5; // ~150 RPM fan
+
+  const whooshLfoGain = ctx.createGain();
+  whooshLfoGain.gain.value = 0.02;
+
+  whooshLfo.connect(whooshLfoGain);
+  whooshLfoGain.connect(fanGain.gain);
+
+  sources.push(whooshLfo);
+  nodes.push(whooshLfoGain);
+  whooshLfo.start();
+
+  // Higher air movement layer
+  const airNoise = ctx.createBufferSource();
+  airNoise.buffer = createWhiteNoiseBuffer(ctx, 1.5);
+  airNoise.loop = true;
+
+  const airHp = ctx.createBiquadFilter();
+  airHp.type = "highpass";
+  airHp.frequency.value = 800;
+
+  const airLp = ctx.createBiquadFilter();
+  airLp.type = "lowpass";
+  airLp.frequency.value = 3000;
+
+  const airGain = ctx.createGain();
+  airGain.gain.value = 0.06;
+
+  airNoise.connect(airHp);
+  airHp.connect(airLp);
+  airLp.connect(airGain);
+  airGain.connect(out);
+
+  sources.push(airNoise);
+  nodes.push(airHp, airLp, airGain);
+  airNoise.start();
+
+  out.connect(destination);
+
+  const stop = () => {
+    for (const s of sources) {
+      try { s.stop(); } catch { /* ignore */ }
+    }
+    for (const n of nodes) {
+      try { n.disconnect(); } catch { /* ignore */ }
+    }
+    try { out.disconnect(); } catch { /* ignore */ }
+  };
+
+  return { type: "fan", sources, nodes, stop };
+}
+
 export function createAmbience(ctx: AudioContext, type: AmbienceType, destination: AudioNode): RunningAmbience | null {
   if (type === "none") return null;
   if (type === "rain") return createRain(ctx, destination);
@@ -661,5 +890,7 @@ export function createAmbience(ctx: AudioContext, type: AmbienceType, destinatio
   if (type === "drone") return createDrone(ctx, destination);
   if (type === "windchimes") return createWindchimes(ctx, destination);
   if (type === "gongs") return createGongs(ctx, destination);
+  if (type === "ocean") return createOcean(ctx, destination);
+  if (type === "fan") return createFan(ctx, destination);
   return null;
 }
