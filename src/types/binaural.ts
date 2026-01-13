@@ -14,7 +14,7 @@ export interface Section {
 
 export type WaveformType = 'sine' | 'triangle' | 'sawtooth';
 export type NoiseType = 'white' | 'pink' | 'brown';
-export type AmbienceType = 'none' | 'rain' | 'forest' | 'drone' | 'windchimes' | 'gongs';
+export type AmbienceType = 'none' | 'rain' | 'forest' | 'drone' | 'windchimes' | 'gongs' | 'ocean' | 'fan';
 
 export interface NoiseSettings {
   type: NoiseType;
@@ -28,7 +28,8 @@ export interface AmbienceSettings {
   enabled: boolean;
 }
 
-export interface EffectsSettings {
+// Single effect settings for one target
+export interface SingleEffectSettings {
   reverb: {
     enabled: boolean;
     amount: number;
@@ -43,6 +44,32 @@ export interface EffectsSettings {
     depth: number;
   };
 }
+
+// Multi-target effects settings
+export interface EffectsSettings {
+  song: SingleEffectSettings;
+  soundscape: SingleEffectSettings;
+  noise: SingleEffectSettings;
+}
+
+// Legacy single-target effects (for backwards compatibility during migration)
+export interface LegacyEffectsSettings {
+  reverb: {
+    enabled: boolean;
+    amount: number;
+  };
+  lowpass: {
+    enabled: boolean;
+    frequency: number;
+  };
+  autoPan: {
+    enabled: boolean;
+    rate: number;
+    depth: number;
+  };
+}
+
+export type EffectsTarget = 'song' | 'soundscape' | 'noise';
 
 export interface Track {
   title: string;

@@ -45,10 +45,16 @@ const defaultAmbienceSettings: AmbienceSettings = {
   enabled: false,
 };
 
-const defaultEffectsSettings: EffectsSettings = {
+const defaultSingleEffects = {
   reverb: { enabled: false, amount: 0.3 },
   lowpass: { enabled: false, frequency: 2000 },
   autoPan: { enabled: false, rate: 0.1, depth: 0.5 },
+};
+
+const defaultEffectsSettings: EffectsSettings = {
+  song: { ...defaultSingleEffects },
+  soundscape: { ...defaultSingleEffects },
+  noise: { ...defaultSingleEffects },
 };
 
 const defaultTrack: Track = {
@@ -72,7 +78,7 @@ const loadSavedTrack = (): Track => {
 
   const isWaveform = (v: unknown): v is WaveformType => v === 'sine' || v === 'triangle' || v === 'sawtooth';
   const isNoiseType = (v: unknown): v is NoiseType => v === 'white' || v === 'pink' || v === 'brown';
-  const isAmbienceType = (v: unknown): v is AmbienceType => v === 'none' || v === 'rain' || v === 'forest' || v === 'drone' || v === 'windchimes' || v === 'gongs';
+  const isAmbienceType = (v: unknown): v is AmbienceType => v === 'none' || v === 'rain' || v === 'forest' || v === 'drone' || v === 'windchimes' || v === 'gongs' || v === 'ocean' || v === 'fan';
 
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -96,27 +102,44 @@ const loadSavedTrack = (): Track => {
           enabled: typeof parsedAmbience.enabled === 'boolean' ? parsedAmbience.enabled : defaultAmbienceSettings.enabled,
         };
 
-        const effects: EffectsSettings = {
+        // Parse multi-target effects (with backwards compatibility for old single-target format)
+        const parseSingleEffects = (src: any, defaults: typeof defaultSingleEffects) => ({
           reverb: {
-            enabled: typeof parsedEffects.reverb?.enabled === 'boolean' ? parsedEffects.reverb.enabled : defaultEffectsSettings.reverb.enabled,
-            amount: clamp01(parsedEffects.reverb?.amount, defaultEffectsSettings.reverb.amount),
+            enabled: typeof src?.reverb?.enabled === 'boolean' ? src.reverb.enabled : defaults.reverb.enabled,
+            amount: clamp01(src?.reverb?.amount, defaults.reverb.amount),
           },
           lowpass: {
-            enabled: typeof parsedEffects.lowpass?.enabled === 'boolean' ? parsedEffects.lowpass.enabled : defaultEffectsSettings.lowpass.enabled,
+            enabled: typeof src?.lowpass?.enabled === 'boolean' ? src.lowpass.enabled : defaults.lowpass.enabled,
             frequency:
-              typeof parsedEffects.lowpass?.frequency === 'number' && Number.isFinite(parsedEffects.lowpass.frequency)
-                ? parsedEffects.lowpass.frequency
-                : defaultEffectsSettings.lowpass.frequency,
+              typeof src?.lowpass?.frequency === 'number' && Number.isFinite(src.lowpass.frequency)
+                ? src.lowpass.frequency
+                : defaults.lowpass.frequency,
           },
           autoPan: {
-            enabled: typeof parsedEffects.autoPan?.enabled === 'boolean' ? parsedEffects.autoPan.enabled : defaultEffectsSettings.autoPan.enabled,
+            enabled: typeof src?.autoPan?.enabled === 'boolean' ? src.autoPan.enabled : defaults.autoPan.enabled,
             rate:
-              typeof parsedEffects.autoPan?.rate === 'number' && Number.isFinite(parsedEffects.autoPan.rate)
-                ? parsedEffects.autoPan.rate
-                : defaultEffectsSettings.autoPan.rate,
-            depth: clamp01(parsedEffects.autoPan?.depth, defaultEffectsSettings.autoPan.depth),
+              typeof src?.autoPan?.rate === 'number' && Number.isFinite(src.autoPan.rate)
+                ? src.autoPan.rate
+                : defaults.autoPan.rate,
+            depth: clamp01(src?.autoPan?.depth, defaults.autoPan.depth),
           },
-        };
+        });
+
+        // Check if it's the new multi-target format or legacy single-target
+        const isMultiTarget = parsedEffects?.song || parsedEffects?.soundscape || parsedEffects?.noise;
+        
+        const effects: EffectsSettings = isMultiTarget
+          ? {
+              song: parseSingleEffects(parsedEffects.song, defaultSingleEffects),
+              soundscape: parseSingleEffects(parsedEffects.soundscape, defaultSingleEffects),
+              noise: parseSingleEffects(parsedEffects.noise, defaultSingleEffects),
+            }
+          : {
+              // Migrate legacy format: apply old effects to song only
+              song: parseSingleEffects(parsedEffects, defaultSingleEffects),
+              soundscape: { ...defaultSingleEffects },
+              noise: { ...defaultSingleEffects },
+            };
 
         return {
           ...defaultTrack,
