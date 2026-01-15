@@ -6,7 +6,10 @@ export interface CustomPreset {
   name: string;
   description?: string;
   beat: number;
+  endBeat?: number;
   carrier: number;
+  endCarrier?: number;
+  rampEnabled?: boolean;
   duration: number;
   createdAt: number;
 }
@@ -119,7 +122,10 @@ export function useCustomPresets() {
       id: `custom_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
       name: customName || section.name,
       beat: section.beat,
+      endBeat: section.endBeat,
       carrier: section.carrier,
+      endCarrier: section.endCarrier,
+      rampEnabled: section.rampEnabled,
       duration: section.duration,
       createdAt: Date.now(),
     };
@@ -132,6 +138,22 @@ export function useCustomPresets() {
 
     return newPreset;
   }, [savePresets]);
+
+  const importPresets = useCallback((imported: CustomPreset[]) => {
+    setPresets((prev) => {
+      // Merge by id, imported override existing
+      const map = new Map<string, CustomPreset>();
+      for (const p of prev) map.set(p.id, p);
+      for (const p of imported) map.set(p.id, p);
+      const merged = Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt);
+      savePresets(merged);
+      return merged;
+    });
+  }, [savePresets]);
+
+  const exportPresets = useCallback(() => {
+    return presets;
+  }, [presets]);
 
   const deletePreset = useCallback((id: string) => {
     setPresets((prev) => {
@@ -155,5 +177,7 @@ export function useCustomPresets() {
     addPreset,
     deletePreset,
     updatePreset,
+    importPresets,
+    exportPresets,
   };
 }

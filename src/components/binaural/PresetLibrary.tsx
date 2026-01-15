@@ -1,12 +1,19 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Zap, Moon, Brain, Sparkles, Heart, Star, Trash2, Search } from 'lucide-react';
 import { Section } from '@/types/binaural';
 import { CustomPreset } from '@/hooks/useCustomPresets';
@@ -73,6 +80,7 @@ interface PresetLibraryProps {
   onAddPreset: (section: Omit<Section, 'id'>) => void;
   customPresets: CustomPreset[];
   onDeleteCustomPreset: (id: string) => void;
+  onSaveAsPreset?: (section: Section, name: string) => void;
 }
 
 export function PresetLibrary({ onAddPreset, customPresets, onDeleteCustomPreset }: PresetLibraryProps) {
@@ -96,7 +104,10 @@ export function PresetLibrary({ onAddPreset, customPresets, onDeleteCustomPreset
       name: preset.name,
       duration: preset.duration,
       carrier: preset.carrier,
+      endCarrier: preset.endCarrier,
       beat: preset.beat,
+      endBeat: preset.endBeat,
+      rampEnabled: preset.rampEnabled,
       volume: 0.8,
       muted: false,
     });
@@ -197,6 +208,9 @@ export function PresetLibrary({ onAddPreset, customPresets, onDeleteCustomPreset
                           </div>
                           <div className="text-[10px] text-muted-foreground">
                             {preset.carrier}Hz carrier • {preset.duration}s
+                            {preset.rampEnabled && preset.endBeat !== undefined && (
+                              <span className="ml-1 text-accent">→ {preset.endBeat}Hz</span>
+                            )}
                           </div>
                         </div>
                         <div className="text-xs font-mono text-primary/70 shrink-0">
@@ -235,5 +249,60 @@ export function PresetLibrary({ onAddPreset, customPresets, onDeleteCustomPreset
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+// Dialog component for naming a preset before saving
+interface SavePresetDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  defaultName: string;
+  onSave: (name: string) => void;
+}
+
+export function SavePresetDialog({ open, onOpenChange, defaultName, onSave }: SavePresetDialogProps) {
+  const [name, setName] = useState(defaultName);
+
+  const handleSave = () => {
+    if (name.trim()) {
+      onSave(name.trim());
+      onOpenChange(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md bg-void-surface border-border">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Star className="h-5 w-5 text-primary" />
+            Save as Preset
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-4">
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Preset name..."
+            className="bg-void border-border"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSave();
+            }}
+          />
+          <p className="text-xs text-muted-foreground">
+            This will save the section's frequencies, duration, and ramp settings.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={!name.trim()}>
+            Save Preset
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
