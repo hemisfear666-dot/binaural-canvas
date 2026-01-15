@@ -56,6 +56,8 @@ const defaultSingleEffects = {
   reverb: { enabled: false, amount: 0.3 },
   lowpass: { enabled: false, frequency: 2000 },
   autoPan: { enabled: false, rate: 0.1, depth: 0.5 },
+  audio3d: { enabled: false, intensity: 0.5 },
+  timeshift: { enabled: false, rate: 1.0 },
 };
 
 const defaultEffectsSettings: EffectsSettings = {
@@ -131,6 +133,17 @@ const loadSavedTrack = (): Track => {
                 ? src.autoPan.rate
                 : defaults.autoPan.rate,
             depth: clamp01(src?.autoPan?.depth, defaults.autoPan.depth),
+          },
+          audio3d: {
+            enabled: typeof src?.audio3d?.enabled === 'boolean' ? src.audio3d.enabled : defaults.audio3d.enabled,
+            intensity: clamp01(src?.audio3d?.intensity, defaults.audio3d.intensity),
+          },
+          timeshift: {
+            enabled: typeof src?.timeshift?.enabled === 'boolean' ? src.timeshift.enabled : defaults.timeshift.enabled,
+            rate:
+              typeof src?.timeshift?.rate === 'number' && Number.isFinite(src.timeshift.rate)
+                ? Math.max(0.5, Math.min(2.0, src.timeshift.rate))
+                : defaults.timeshift.rate,
           },
         });
 

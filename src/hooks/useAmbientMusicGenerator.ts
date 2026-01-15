@@ -306,60 +306,75 @@ function createFocusAmbient(ctx: AudioContext, destination: AudioNode): RunningA
 function createSleepAmbient(ctx: AudioContext, destination: AudioNode): RunningAmbientMusic {
   const sources: OscillatorNode[] = [];
   const nodes: AudioNode[] = [];
+  const cancels: Array<() => void> = [];
 
   const out = ctx.createGain();
-  out.gain.value = 1;
+  // Louder gain so it's clearly audible
+  out.gain.value = 1.4;
   nodes.push(out);
 
-  // Very deep, slow, minimal tones
+  // Deep tones - increased volume for audibility
   const freqs = [55, 82.41, 110]; // A1, E2, A2
-  
+
   freqs.forEach((freq, i) => {
     const osc = ctx.createOscillator();
     osc.type = 'sine';
     osc.frequency.value = freq;
-    
+
     const gain = ctx.createGain();
-    gain.gain.value = 0.07 - i * 0.015;
-    
+    // Increased gain for audibility
+    gain.gain.value = 0.14 - i * 0.025;
+
+    // Random pitch wander (gentle)
+    cancels.push(
+      attachRandomPitchWander(ctx, osc.frequency, freq, {
+        maxCents: 16,
+        stepCents: 5,
+        intervalMinSec: 4,
+        intervalMaxSec: 10,
+        smoothingSec: 3.5,
+        startDelaySec: 1 + i * 1.2,
+      })
+    );
+
     // Very slow breathing-like modulation
     const lfo = ctx.createOscillator();
     lfo.type = 'sine';
-    lfo.frequency.value = 0.05 + i * 0.01;
-    
+    lfo.frequency.value = 0.04 + i * 0.008;
+
     const lfoGain = ctx.createGain();
-    lfoGain.gain.value = 0.015;
-    
+    lfoGain.gain.value = 0.04;
+
     lfo.connect(lfoGain);
     lfoGain.connect(gain.gain);
-    
+
     osc.connect(gain);
     gain.connect(out);
-    
+
     sources.push(osc, lfo);
     nodes.push(gain, lfoGain);
-    
+
     osc.start();
     lfo.start();
   });
 
-  // Very dark lowpass
+  // Lowpass - increased cutoff for audibility
   const lp = ctx.createBiquadFilter();
   lp.type = 'lowpass';
-  lp.frequency.value = 300;
-  lp.Q.value = 0.2;
-  
+  lp.frequency.value = 450;
+  lp.Q.value = 0.25;
+
   // Ultra-slow filter movement
   const filterLfo = ctx.createOscillator();
   filterLfo.type = 'sine';
-  filterLfo.frequency.value = 0.015;
-  
+  filterLfo.frequency.value = 0.012;
+
   const filterLfoGain = ctx.createGain();
-  filterLfoGain.gain.value = 80;
-  
+  filterLfoGain.gain.value = 120;
+
   filterLfo.connect(filterLfoGain);
   filterLfoGain.connect(lp.frequency);
-  
+
   sources.push(filterLfo);
   nodes.push(lp, filterLfoGain);
   filterLfo.start();
@@ -368,13 +383,33 @@ function createSleepAmbient(ctx: AudioContext, destination: AudioNode): RunningA
   lp.connect(destination);
 
   const stop = () => {
+    for (const cancel of cancels) {
+      try {
+        cancel();
+      } catch {
+        // ignore
+      }
+    }
     for (const s of sources) {
-      try { s.stop(); } catch { /* ignore */ }
+      try {
+        s.stop();
+      } catch {
+        /* ignore */
+      }
     }
     for (const n of nodes) {
-      try { n.disconnect(); } catch { /* ignore */ }
+      try {
+        n.disconnect();
+      } catch {
+        /* ignore */
+      }
     }
-    try { out.disconnect(); lp.disconnect(); } catch { /* ignore */ }
+    try {
+      out.disconnect();
+      lp.disconnect();
+    } catch {
+      /* ignore */
+    }
   };
 
   return { type: 'sleep', sources, nodes, stop };

@@ -399,11 +399,40 @@ export function SectionRow({
 
         {/* Parameters grid */}
         <div className="grid grid-cols-2 gap-2">
+          {/* Base Carrier */}
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] uppercase text-primary font-medium w-14">Carrier</span>
+            <Input
+              type="number"
+              value={section.carrier}
+              onChange={(e) => onUpdate('carrier', parseFloat(e.target.value) || 100)}
+              min={20}
+              max={500}
+              className="h-7 w-[4.5rem] bg-void border-primary/50 text-center font-mono text-xs"
+            />
+            <span className="text-[10px] text-muted-foreground">Hz</span>
+          </div>
+
+          {/* Base Pulse */}
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] uppercase text-accent font-medium w-14">Pulse</span>
+            <Input
+              type="number"
+              value={section.beat}
+              onChange={(e) => onUpdate('beat', parseFloat(e.target.value) || 1)}
+              min={0.5}
+              max={100}
+              step={0.1}
+              className="h-7 w-[4.5rem] bg-void border-accent/50 text-center font-mono text-xs text-accent"
+            />
+            <span className="text-[10px] text-muted-foreground">Hz</span>
+          </div>
+
           {/* Ramp controls */}
-          <div className="col-span-2 flex items-center justify-between gap-2">
+          <div className="col-span-2 flex items-center justify-between gap-2 pt-1 border-t border-border/30">
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
               <ArrowRight className="h-3 w-3" />
-              Ramp
+              Ramp To
             </span>
             <div className="flex items-center gap-2">
               <Button
@@ -452,10 +481,9 @@ export function SectionRow({
             </div>
           </div>
 
-
           {/* End Carrier */}
-          <div className="flex items-center gap-1">
-            <span className="text-[10px] uppercase text-muted-foreground w-12">→ End</span>
+          <div className={`flex items-center gap-1 ${!rampEnabled ? 'opacity-50' : ''}`}>
+            <span className="text-[10px] uppercase text-muted-foreground w-14">→ Carrier</span>
             <Input
               type="number"
               value={section.endCarrier ?? ''}
@@ -466,29 +494,15 @@ export function SectionRow({
               min={20}
               max={500}
               placeholder={String(section.carrier)}
+              disabled={!rampEnabled}
               className="h-7 w-[4.5rem] bg-void border-primary/30 text-center font-mono text-xs"
             />
             <span className="text-[10px] text-muted-foreground">Hz</span>
           </div>
 
-          {/* Pulse */}
-          <div className="flex items-center gap-1">
-            <span className="text-[10px] uppercase text-muted-foreground w-12">Pulse</span>
-            <Input
-              type="number"
-              value={section.beat}
-              onChange={(e) => onUpdate('beat', parseFloat(e.target.value) || 1)}
-              min={0.5}
-              max={100}
-              step={0.1}
-              className="h-7 w-[4.5rem] bg-void border-accent/50 text-center font-mono text-xs text-accent"
-            />
-            <span className="text-[10px] text-muted-foreground">Hz</span>
-          </div>
-
           {/* End Pulse */}
-          <div className="flex items-center gap-1">
-            <span className="text-[10px] uppercase text-muted-foreground w-12">→ End</span>
+          <div className={`flex items-center gap-1 ${!rampEnabled ? 'opacity-50' : ''}`}>
+            <span className="text-[10px] uppercase text-muted-foreground w-14">→ Pulse</span>
             <Input
               type="number"
               value={section.endBeat ?? ''}
@@ -500,6 +514,7 @@ export function SectionRow({
               max={100}
               step={0.1}
               placeholder={String(section.beat)}
+              disabled={!rampEnabled}
               className="h-7 w-[4.5rem] bg-void border-accent/30 text-center font-mono text-xs text-accent"
             />
             <span className="text-[10px] text-muted-foreground">Hz</span>
@@ -507,7 +522,7 @@ export function SectionRow({
 
           {/* Duration */}
           <div className="flex items-center gap-1">
-            <span className="text-[10px] uppercase text-muted-foreground w-12">Duration</span>
+            <span className="text-[10px] uppercase text-muted-foreground w-14">Duration</span>
             <Input
               type="number"
               value={section.duration}

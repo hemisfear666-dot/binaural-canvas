@@ -1,8 +1,8 @@
-import { useRef, useCallback, useMemo } from 'react';
+import { useRef, useCallback, useMemo, useState } from 'react';
 import { Section } from '@/types/binaural';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ZoomIn, ZoomOut, Maximize2, Undo2, Redo2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2, Undo2, Redo2, Timer } from 'lucide-react';
 
 interface TimelineProps {
   sections: Section[];
@@ -20,6 +20,8 @@ interface TimelineProps {
   canRedo?: boolean;
   onUndo?: () => void;
   onRedo?: () => void;
+  metronomeEnabled?: boolean;
+  onMetronomeChange?: (enabled: boolean) => void;
 }
 
 export function Timeline({
@@ -38,8 +40,12 @@ export function Timeline({
   canRedo,
   onUndo,
   onRedo,
+  metronomeEnabled = false,
+  onMetronomeChange,
 }: TimelineProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const bpmInputRef = useRef<HTMLInputElement>(null);
+  const [bpmFocused, setBpmFocused] = useState(false);
 
   const totalDuration = useMemo(() => {
     return sections.reduce((acc, s) => acc + s.duration, 0);
@@ -120,17 +126,37 @@ export function Timeline({
               <div className="w-px h-4 bg-border mx-1" />
             </>
           )}
-          {/* BPM Control */}
+          {/* BPM Control + Metronome */}
           <div className="flex items-center gap-1 mr-2">
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">BPM</span>
             <Input
+              ref={bpmInputRef}
               type="number"
               value={bpm}
               onChange={(e) => onBpmChange(parseInt(e.target.value) || 120)}
+              onFocus={() => setBpmFocused(true)}
+              onBlur={() => setBpmFocused(false)}
+              onWheel={(e) => {
+                if (!bpmFocused) return;
+                e.preventDefault();
+                const delta = e.deltaY < 0 ? 1 : -1;
+                onBpmChange(Math.max(20, Math.min(300, bpm + delta)));
+              }}
               min={20}
               max={300}
               className="h-6 w-[4.5rem] bg-void border-border text-center font-mono text-xs"
             />
+            {onMetronomeChange && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onMetronomeChange(!metronomeEnabled)}
+                className={`h-6 w-6 ${metronomeEnabled ? 'text-accent bg-accent/20' : 'text-muted-foreground hover:text-accent'}`}
+                title={metronomeEnabled ? 'Disable metronome' : 'Enable metronome'}
+              >
+                <Timer className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
           <div className="w-px h-4 bg-border mx-1" />
           <Button

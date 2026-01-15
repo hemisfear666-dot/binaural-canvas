@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Waves, Filter, Move, Music, TreeDeciduous, AudioWaveform, Sparkles } from 'lucide-react';
+import { Waves, Filter, Move, Music, TreeDeciduous, AudioWaveform, Sparkles, Box, Clock } from 'lucide-react';
 import { EffectsSettings, EffectsTarget, SingleEffectSettings } from '@/types/binaural';
 
 interface EffectsRackProps {
@@ -183,6 +183,83 @@ export function EffectsRack({ effects, onEffectsChange }: EffectsRackProps) {
               {Math.round(currentEffects.autoPan.depth * 100)}%
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* Divider */}
+      <div className="h-px bg-border" />
+
+      {/* 3D Audio */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Box className="h-4 w-4 text-accent" />
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              3D Audio
+            </Label>
+          </div>
+          <Switch
+            checked={currentEffects.audio3d.enabled}
+            onCheckedChange={(enabled) =>
+              handleEffectChange({ ...currentEffects, audio3d: { ...currentEffects.audio3d, enabled } })
+            }
+            className="data-[state=checked]:bg-accent"
+          />
+        </div>
+        <div className={`flex items-center gap-2 ${!currentEffects.audio3d.enabled ? 'opacity-50' : ''}`}>
+          <span className="text-[10px] text-muted-foreground w-12">Intensity</span>
+          <Slider
+            value={[currentEffects.audio3d.intensity * 100]}
+            onValueChange={([v]) =>
+              handleEffectChange({ ...currentEffects, audio3d: { ...currentEffects.audio3d, intensity: v / 100 } })
+            }
+            max={100}
+            step={1}
+            disabled={!currentEffects.audio3d.enabled}
+            className="flex-1"
+          />
+          <span className="font-mono text-xs text-muted-foreground w-8">
+            {Math.round(currentEffects.audio3d.intensity * 100)}%
+          </span>
+        </div>
+      </div>
+
+      {/* Divider */}
+      <div className="h-px bg-border" />
+
+      {/* Timeshift */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-primary" />
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              Timeshift
+            </Label>
+          </div>
+          <Switch
+            checked={currentEffects.timeshift.enabled}
+            onCheckedChange={(enabled) =>
+              handleEffectChange({ ...currentEffects, timeshift: { ...currentEffects.timeshift, enabled } })
+            }
+            className="data-[state=checked]:bg-primary"
+          />
+        </div>
+        <div className={`flex items-center gap-2 ${!currentEffects.timeshift.enabled ? 'opacity-50' : ''}`}>
+          <span className="text-[10px] text-muted-foreground w-12">Speed</span>
+          <Slider
+            value={[currentEffects.timeshift.rate * 100]}
+            onValueChange={([v]) =>
+              handleEffectChange({ ...currentEffects, timeshift: { ...currentEffects.timeshift, rate: v / 100 } })
+            }
+            min={50}
+            max={200}
+            step={5}
+            disabled={!currentEffects.timeshift.enabled}
+            className="flex-1"
+          />
+          <span className="font-mono text-xs text-muted-foreground w-10">
+            {currentEffects.timeshift.rate.toFixed(2)}x
+          </span>
         </div>
       </div>
     </div>

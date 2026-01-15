@@ -50,6 +50,14 @@ export interface SingleEffectSettings {
     rate: number;
     depth: number;
   };
+  audio3d: {
+    enabled: boolean;
+    intensity: number; // 0-1
+  };
+  timeshift: {
+    enabled: boolean;
+    rate: number; // 0.5 to 2.0
+  };
 }
 
 // Multi-target effects settings
