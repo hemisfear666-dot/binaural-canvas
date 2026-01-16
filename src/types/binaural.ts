@@ -56,7 +56,7 @@ export interface SingleEffectSettings {
   };
   timeshift: {
     enabled: boolean;
-    rate: number; // 0.5 to 2.0
+    rate: number; // 0.5 to 5.0
   };
 }
 

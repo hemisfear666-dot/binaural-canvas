@@ -252,7 +252,7 @@ export function EffectsRack({ effects, onEffectsChange }: EffectsRackProps) {
               handleEffectChange({ ...currentEffects, timeshift: { ...currentEffects.timeshift, rate: v / 100 } })
             }
             min={50}
-            max={200}
+            max={500}
             step={5}
             disabled={!currentEffects.timeshift.enabled}
             className="flex-1"

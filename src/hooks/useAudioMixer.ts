@@ -236,10 +236,11 @@ function applyEffectsToChain(
   // we'll apply a frequency shift approximation via the lowpass and detune
   // NOTE: True timeshift requires source-level control. For now, apply a subtle pitch shift effect.
   if (settings?.timeshift?.enabled) {
-    const rate = typeof settings.timeshift.rate === 'number' && Number.isFinite(settings.timeshift.rate)
-      ? Math.max(0.5, Math.min(2.0, settings.timeshift.rate))
-      : 1.0;
-    
+    const rate =
+      typeof settings.timeshift.rate === "number" && Number.isFinite(settings.timeshift.rate)
+        ? Math.max(0.5, Math.min(5.0, settings.timeshift.rate))
+        : 1.0;
+
     // Store rate for potential source-level use
     (chain as any)._timeshiftRate = rate;
   } else {

@@ -143,7 +143,7 @@ const loadSavedTrack = (): Track => {
             enabled: typeof src?.timeshift?.enabled === 'boolean' ? src.timeshift.enabled : defaults.timeshift.enabled,
             rate:
               typeof src?.timeshift?.rate === 'number' && Number.isFinite(src.timeshift.rate)
-                ? Math.max(0.5, Math.min(2.0, src.timeshift.rate))
+                ? Math.max(0.5, Math.min(5.0, src.timeshift.rate))
                 : defaults.timeshift.rate,
           },
         });
