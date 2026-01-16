@@ -7,6 +7,7 @@ import { useAmbiencePlayer } from '@/hooks/useAmbiencePlayer';
 import { useAmbientMusicGenerator } from '@/hooks/useAmbientMusicGenerator';
 import { useHistory } from '@/hooks/useHistory';
 import { useCustomPresets } from '@/hooks/useCustomPresets';
+import { useMetronome } from '@/hooks/useMetronome';
 import { GlobalControls } from './GlobalControls';
 import { TransportControls } from './TransportControls';
 import { Timeline } from './Timeline';
@@ -14,7 +15,7 @@ import { SectionList } from './SectionList';
 import { ImportExport } from './ImportExport';
 import { StatusBar } from './StatusBar';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
-import { PresetLibrary } from './PresetLibrary';
+import { PresetLibrary, SavePresetDialog } from './PresetLibrary';
 import { TriangleGenerator } from './TriangleGenerator';
 import { AudioLayers } from './AudioLayers';
 import { WaveformSelector } from './WaveformSelector';
@@ -197,6 +198,9 @@ export function BinauralWorkstation() {
   const [activeEditIndex, setActiveEditIndex] = useState<number | null>(0);
   const [helpOpen, setHelpOpen] = useState(false);
   const [pixelsPerSecond, setPixelsPerSecond] = useState(8);
+  const [metronomeEnabled, setMetronomeEnabled] = useState(false);
+  const [savePresetDialogOpen, setSavePresetDialogOpen] = useState(false);
+  const [sectionToSave, setSectionToSave] = useState<Section | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Custom presets management
@@ -450,11 +454,22 @@ export function BinauralWorkstation() {
     toast.success(`Added "${preset.name}"`);
   }, [track.sections, handleSectionsChange]);
 
-  // Save section as custom preset
+  // Save section as custom preset (opens dialog for naming)
   const handleSaveAsPreset = useCallback((section: Section) => {
-    const preset = addCustomPreset(section);
-    toast.success(`Saved "${preset.name}" to presets`);
-  }, [addCustomPreset]);
+    setSectionToSave(section);
+    setSavePresetDialogOpen(true);
+  }, []);
+
+  const handleConfirmSavePreset = useCallback((name: string) => {
+    if (sectionToSave) {
+      addCustomPreset(sectionToSave, name);
+      toast.success(`Saved "${name}" to presets`);
+      setSectionToSave(null);
+    }
+  }, [sectionToSave, addCustomPreset]);
+
+  // Metronome
+  useMetronome(track.bpm, metronomeEnabled && playbackState === 'playing', mixer.ensure);
 
   // BPM handler
   const handleBpmChange = useCallback((bpm: number) => {
@@ -651,6 +666,8 @@ export function BinauralWorkstation() {
           canRedo={canRedo}
           onUndo={undo}
           onRedo={redo}
+          metronomeEnabled={metronomeEnabled}
+          onMetronomeChange={setMetronomeEnabled}
         />
 
         {/* Section Editor */}
@@ -754,6 +771,14 @@ export function BinauralWorkstation() {
         playbackState={playbackState}
         currentTime={currentTime}
         isIsochronic={track.isIsochronic}
+      />
+
+      {/* Save Preset Dialog */}
+      <SavePresetDialog
+        open={savePresetDialogOpen}
+        onOpenChange={setSavePresetDialogOpen}
+        defaultName={sectionToSave?.name || ''}
+        onSave={handleConfirmSavePreset}
       />
     </div>
   );
