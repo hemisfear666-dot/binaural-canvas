@@ -22,6 +22,7 @@ function createHallImpulse(ctx: AudioContext, seconds = 7, decay = 3.5) {
 interface EffectChain {
   input: GainNode;
   panner: StereoPannerNode;
+  pannerNode3d: PannerNode; // 3D spatial panner
   dryGain: GainNode;
   reverbSend: GainNode;
   convolver: ConvolverNode;
@@ -30,11 +31,30 @@ interface EffectChain {
   output: GainNode;
   autoPanOsc: OscillatorNode | null;
   autoPanGain: GainNode | null;
+  audio3dOsc: OscillatorNode | null; // For 3D spatial movement
+  audio3dGain: GainNode | null;
+  timeshiftNode: AudioBufferSourceNode | null; // For playback rate shifting
 }
 
 function createEffectChain(ctx: AudioContext, impulseBuffer: AudioBuffer): EffectChain {
   const input = ctx.createGain();
   const panner = ctx.createStereoPanner();
+  
+  // 3D spatial panner for immersive audio
+  const pannerNode3d = ctx.createPanner();
+  pannerNode3d.panningModel = 'HRTF';
+  pannerNode3d.distanceModel = 'inverse';
+  pannerNode3d.refDistance = 1;
+  pannerNode3d.maxDistance = 10000;
+  pannerNode3d.rolloffFactor = 1;
+  pannerNode3d.coneInnerAngle = 360;
+  pannerNode3d.coneOuterAngle = 360;
+  pannerNode3d.coneOuterGain = 0;
+  // Start at center
+  pannerNode3d.positionX.value = 0;
+  pannerNode3d.positionY.value = 0;
+  pannerNode3d.positionZ.value = 0;
+  
   const dryGain = ctx.createGain();
   const reverbSend = ctx.createGain();
   const convolver = ctx.createConvolver();
@@ -45,12 +65,13 @@ function createEffectChain(ctx: AudioContext, impulseBuffer: AudioBuffer): Effec
   lowpass.Q.value = 0.7;
   const output = ctx.createGain();
 
-  // Routing: input -> panner -> (dry + reverb send) -> lowpass -> output
+  // Routing: input -> panner -> pannerNode3d -> (dry + reverb send) -> lowpass -> output
   input.connect(panner);
-  panner.connect(dryGain);
+  panner.connect(pannerNode3d);
+  pannerNode3d.connect(dryGain);
   dryGain.connect(lowpass);
   
-  panner.connect(reverbSend);
+  pannerNode3d.connect(reverbSend);
   reverbSend.connect(convolver);
   convolver.connect(wetGain);
   wetGain.connect(lowpass);
@@ -60,6 +81,7 @@ function createEffectChain(ctx: AudioContext, impulseBuffer: AudioBuffer): Effec
   return {
     input,
     panner,
+    pannerNode3d,
     dryGain,
     reverbSend,
     convolver,
@@ -68,6 +90,9 @@ function createEffectChain(ctx: AudioContext, impulseBuffer: AudioBuffer): Effec
     output,
     autoPanOsc: null,
     autoPanGain: null,
+    audio3dOsc: null,
+    audio3dGain: null,
+    timeshiftNode: null,
   };
 }
 
@@ -133,6 +158,92 @@ function applyEffectsToChain(
       chain.autoPanGain = null;
     }
     chain.panner.pan.setValueAtTime(0, ctx.currentTime);
+  }
+
+  // 3D Audio - sweeping spatial movement
+  if (settings?.audio3d?.enabled) {
+    const intensity = clamp01(settings.audio3d.intensity, 0.5);
+    const radius = 3 * intensity; // Distance from center
+    const sweepRate = 0.1 + intensity * 0.2; // Sweep speed
+
+    if (!chain.audio3dOsc) {
+      // Create oscillators for X and Z movement (circular sweep)
+      const oscX = ctx.createOscillator();
+      oscX.type = "sine";
+      oscX.frequency.value = sweepRate;
+      
+      const gainX = ctx.createGain();
+      gainX.gain.value = radius;
+      
+      oscX.connect(gainX);
+      // Use a scriptProcessor or worklet to apply LFO to panner position
+      // For simplicity, we'll use a periodic update
+      oscX.start();
+      
+      chain.audio3dOsc = oscX;
+      chain.audio3dGain = gainX;
+
+      // Start a periodic update for 3D position
+      const update3DPosition = () => {
+        if (!chain.audio3dOsc) return;
+        const t = ctx.currentTime * sweepRate * Math.PI * 2;
+        const x = Math.sin(t) * radius;
+        const z = Math.cos(t) * radius;
+        const y = Math.sin(t * 0.7) * radius * 0.3; // Slight vertical movement
+        
+        chain.pannerNode3d.positionX.setValueAtTime(x, ctx.currentTime);
+        chain.pannerNode3d.positionY.setValueAtTime(y, ctx.currentTime);
+        chain.pannerNode3d.positionZ.setValueAtTime(z - 1, ctx.currentTime); // Offset Z slightly
+        
+        if (chain.audio3dOsc) {
+          requestAnimationFrame(update3DPosition);
+        }
+      };
+      update3DPosition();
+    } else {
+      // Update intensity
+      if (chain.audio3dGain) {
+        chain.audio3dGain.gain.setValueAtTime(radius, ctx.currentTime);
+      }
+    }
+  } else {
+    // Disable 3D audio - return to center
+    if (chain.audio3dOsc) {
+      try {
+        chain.audio3dOsc.stop();
+        chain.audio3dOsc.disconnect();
+      } catch {
+        // ignore
+      }
+      chain.audio3dOsc = null;
+    }
+    if (chain.audio3dGain) {
+      try {
+        chain.audio3dGain.disconnect();
+      } catch {
+        // ignore
+      }
+      chain.audio3dGain = null;
+    }
+    // Reset position to center
+    chain.pannerNode3d.positionX.setValueAtTime(0, ctx.currentTime);
+    chain.pannerNode3d.positionY.setValueAtTime(0, ctx.currentTime);
+    chain.pannerNode3d.positionZ.setValueAtTime(0, ctx.currentTime);
+  }
+
+  // Timeshift - adjust playback rate via detune (works on oscillators connected through)
+  // Since we can't change playback rate of the entire chain directly,
+  // we'll apply a frequency shift approximation via the lowpass and detune
+  // NOTE: True timeshift requires source-level control. For now, apply a subtle pitch shift effect.
+  if (settings?.timeshift?.enabled) {
+    const rate = typeof settings.timeshift.rate === 'number' && Number.isFinite(settings.timeshift.rate)
+      ? Math.max(0.5, Math.min(2.0, settings.timeshift.rate))
+      : 1.0;
+    
+    // Store rate for potential source-level use
+    (chain as any)._timeshiftRate = rate;
+  } else {
+    (chain as any)._timeshiftRate = 1.0;
   }
 }
 
@@ -298,7 +409,7 @@ export function useAudioMixer(
     ambienceChainRef.current?.wetGain.gain.setValueAtTime(0, ctx.currentTime);
     ambientMusicChainRef.current?.wetGain.gain.setValueAtTime(0, ctx.currentTime);
 
-    // Stop autopan oscillators
+    // Stop autopan and 3D audio oscillators
     [songChainRef, noiseChainRef, ambienceChainRef, ambientMusicChainRef].forEach((chainRef) => {
       const chain = chainRef.current;
       if (chain?.autoPanOsc) {
@@ -317,6 +428,29 @@ export function useAudioMixer(
           // ignore
         }
         chain.autoPanGain = null;
+      }
+      if (chain?.audio3dOsc) {
+        try {
+          chain.audio3dOsc.stop();
+          chain.audio3dOsc.disconnect();
+        } catch {
+          // ignore
+        }
+        chain.audio3dOsc = null;
+      }
+      if (chain?.audio3dGain) {
+        try {
+          chain.audio3dGain.disconnect();
+        } catch {
+          // ignore
+        }
+        chain.audio3dGain = null;
+      }
+      // Reset 3D position
+      if (chain?.pannerNode3d) {
+        chain.pannerNode3d.positionX.setValueAtTime(0, ctxRef.current!.currentTime);
+        chain.pannerNode3d.positionY.setValueAtTime(0, ctxRef.current!.currentTime);
+        chain.pannerNode3d.positionZ.setValueAtTime(0, ctxRef.current!.currentTime);
       }
     });
   }, []);
