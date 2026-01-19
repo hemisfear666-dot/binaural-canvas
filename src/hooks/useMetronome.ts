@@ -10,6 +10,12 @@ export function useMetronome(
   const ctxRef = useRef<AudioContext | null>(null);
   const nextTickTimeRef = useRef(0);
   const secondsPerBeatRef = useRef(0.5);
+  const ensureCtxRef = useRef(ensureCtx);
+  
+  // Keep refs up to date
+  useEffect(() => {
+    ensureCtxRef.current = ensureCtx;
+  }, [ensureCtx]);
 
   // Update seconds per beat when BPM changes (without restarting scheduler)
   useEffect(() => {
@@ -30,30 +36,31 @@ export function useMetronome(
       return;
     }
 
-    const ctx = ensureCtx();
+    const ctx = ensureCtxRef.current();
     ctxRef.current = ctx;
     void resumeAudioContext(ctx, "metronome");
 
     const scheduleClick = (time: number) => {
+      if (!ctxRef.current) return;
       // Schedule a precise click on the audio timeline
-      const osc = ctx.createOscillator();
+      const osc = ctxRef.current.createOscillator();
       osc.type = "sine";
       osc.frequency.setValueAtTime(880, time); // A5 - clear tick sound
 
-      const gain = ctx.createGain();
+      const gain = ctxRef.current.createGain();
       gain.gain.setValueAtTime(0.0001, time);
       gain.gain.exponentialRampToValueAtTime(0.25, time + 0.002);
       gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.04);
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(ctxRef.current.destination);
 
       osc.start(time);
       osc.stop(time + 0.05);
     };
 
     // Initialize the next tick time relative to current audio time
-    nextTickTimeRef.current = ctx.currentTime + 0.1;
+    nextTickTimeRef.current = ctx.currentTime + 0.05;
 
     const lookAheadSec = 0.1; // How far ahead to schedule (seconds)
     const intervalMs = 25; // How often to check (milliseconds)
@@ -76,7 +83,7 @@ export function useMetronome(
     return () => {
       stopScheduler();
     };
-  }, [enabled, ensureCtx]); // Removed bpm from deps - uses ref instead
+  }, [enabled]); // Only depend on enabled - everything else uses refs
 
   return null;
 }
