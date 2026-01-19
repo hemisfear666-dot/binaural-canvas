@@ -4,7 +4,7 @@ import { useAudioMixer } from '@/hooks/useAudioMixer';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { useNoiseGenerator } from '@/hooks/useNoiseGenerator';
 import { useAmbiencePlayer } from '@/hooks/useAmbiencePlayer';
-import { useAmbientMusicGenerator } from '@/hooks/useAmbientMusicGenerator';
+import { useAmbientMusicPlayer } from '@/hooks/useAmbientMusicPlayer';
 import { useHistory } from '@/hooks/useHistory';
 import { useCustomPresets } from '@/hooks/useCustomPresets';
 import { useMetronome } from '@/hooks/useMetronome';
@@ -267,7 +267,7 @@ export function BinauralWorkstation() {
     track.ambience.type
   );
 
-  const { startPreview: startAmbientMusicPreview, stopPreview: stopAmbientMusicPreview } = useAmbientMusicGenerator(
+  const { startPreview: startAmbientMusicPreview, stopPreview: stopAmbientMusicPreview } = useAmbientMusicPlayer(
     mixer.ensure,
     mixer.getAmbientMusicInput,
     track.ambientMusic.enabled && playbackState === 'playing',
