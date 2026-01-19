@@ -68,11 +68,17 @@ export function useMetronome(
     const scheduler = () => {
       if (!ctxRef.current) return;
       const now = ctxRef.current.currentTime;
-      
+      const spb = secondsPerBeatRef.current;
+
+      // If the main thread stalls (tab background / heavy UI), avoid "catch-up bursts"
+      if (nextTickTimeRef.current < now - spb) {
+        nextTickTimeRef.current = now + 0.05;
+      }
+
       // Schedule all clicks that fall within the lookahead window
       while (nextTickTimeRef.current < now + lookAheadSec) {
         scheduleClick(nextTickTimeRef.current);
-        nextTickTimeRef.current += secondsPerBeatRef.current;
+        nextTickTimeRef.current += spb;
       }
     };
 
