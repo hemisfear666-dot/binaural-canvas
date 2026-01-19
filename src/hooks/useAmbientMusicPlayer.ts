@@ -2,11 +2,11 @@ import { useCallback, useRef, useEffect } from 'react';
 import { AmbientMusicType } from '@/types/binaural';
 import { resumeAudioContext } from '@/lib/audio/resumeAudioContext';
 
-// CC0 Ambient music tracks from freesound.org / Pixabay
+// CC0 Ambient music tracks from Archive.org (HoliznaCC0 - Public Domain)
 const AMBIENT_TRACKS: Record<AmbientMusicType, string> = {
-  soothing: 'https://cdn.pixabay.com/audio/2024/11/29/audio_cb4cb98c51.mp3', // Calm ambient pad
-  focus: 'https://cdn.pixabay.com/audio/2024/09/03/audio_e53b0ff5d8.mp3', // Focus concentration music
-  sleep: 'https://cdn.pixabay.com/audio/2024/02/14/audio_32ebe0f3b7.mp3', // Deep sleep ambient
+  soothing: 'https://archive.org/download/holiznacc0_space_sleep_meditation/Rain%20_%20Sleep%20_%20Meditation.mp3',
+  focus: 'https://archive.org/download/holiznacc0_space_sleep_meditation/20%20Minute%20Meditation%2012.mp3',
+  sleep: 'https://archive.org/download/holiznacc0_space_sleep_meditation/Cosmic%20Waves.mp3',
 };
 
 interface RunningAmbientTrack {
