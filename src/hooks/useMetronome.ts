@@ -9,30 +9,34 @@ export function useMetronome(
   const schedulerRef = useRef<number | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
   const nextTickTimeRef = useRef(0);
-  const secondsPerBeatRef = useRef(0.5);
+  // Initialize with actual BPM value
+  const secondsPerBeatRef = useRef(60 / Math.max(20, Math.min(300, bpm)));
   const ensureCtxRef = useRef(ensureCtx);
-  
+  const enabledRef = useRef(enabled);
+
   // Keep refs up to date
   useEffect(() => {
     ensureCtxRef.current = ensureCtx;
   }, [ensureCtx]);
 
-  // Update seconds per beat when BPM changes (without restarting scheduler)
+  useEffect(() => {
+    enabledRef.current = enabled;
+  }, [enabled]);
+
+  // Update seconds per beat when BPM changes
   useEffect(() => {
     const clampedBpm = Math.max(20, Math.min(300, bpm));
     secondsPerBeatRef.current = 60 / clampedBpm;
   }, [bpm]);
 
   useEffect(() => {
-    const stopScheduler = () => {
-      if (schedulerRef.current) {
-        clearInterval(schedulerRef.current);
-        schedulerRef.current = null;
-      }
-    };
+    // Clear any existing scheduler first
+    if (schedulerRef.current) {
+      clearInterval(schedulerRef.current);
+      schedulerRef.current = null;
+    }
 
     if (!enabled) {
-      stopScheduler();
       return;
     }
 
@@ -40,56 +44,63 @@ export function useMetronome(
     ctxRef.current = ctx;
     void resumeAudioContext(ctx, "metronome");
 
-    const scheduleClick = (time: number) => {
-      if (!ctxRef.current) return;
-      // Schedule a precise click on the audio timeline
-      const osc = ctxRef.current.createOscillator();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(880, time); // A5 - clear tick sound
-
-      const gain = ctxRef.current.createGain();
-      gain.gain.setValueAtTime(0.0001, time);
-      gain.gain.exponentialRampToValueAtTime(0.25, time + 0.002);
-      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.04);
-
-      osc.connect(gain);
-      gain.connect(ctxRef.current.destination);
-
-      osc.start(time);
-      osc.stop(time + 0.05);
-    };
-
-    // Initialize the next tick time relative to current audio time
+    // Reset next tick time when starting
     nextTickTimeRef.current = ctx.currentTime + 0.05;
 
-    const lookAheadSec = 0.1; // How far ahead to schedule (seconds)
-    const intervalMs = 25; // How often to check (milliseconds)
+    const scheduleClick = (time: number) => {
+      const audioCtx = ctxRef.current;
+      if (!audioCtx) return;
+
+      // Create a short "tick" sound
+      const osc = audioCtx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.value = 880; // A5
+
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0, time);
+      gain.gain.linearRampToValueAtTime(0.3, time + 0.001);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start(time);
+      osc.stop(time + 0.04);
+    };
+
+    const lookAheadSec = 0.1;
+    const intervalMs = 25;
 
     const scheduler = () => {
-      if (!ctxRef.current) return;
-      const now = ctxRef.current.currentTime;
+      const audioCtx = ctxRef.current;
+      if (!audioCtx || !enabledRef.current) return;
+
+      const now = audioCtx.currentTime;
       const spb = secondsPerBeatRef.current;
 
-      // If the main thread stalls (tab background / heavy UI), avoid "catch-up bursts"
-      if (nextTickTimeRef.current < now - spb) {
-        nextTickTimeRef.current = now + 0.05;
+      // If we've fallen behind (tab was backgrounded), skip ahead
+      if (nextTickTimeRef.current < now) {
+        nextTickTimeRef.current = now + 0.01;
       }
 
-      // Schedule all clicks that fall within the lookahead window
+      // Schedule clicks in the lookahead window
       while (nextTickTimeRef.current < now + lookAheadSec) {
         scheduleClick(nextTickTimeRef.current);
         nextTickTimeRef.current += spb;
       }
     };
 
-    // Run scheduler immediately and then at regular intervals
+    // Start scheduling
     scheduler();
     schedulerRef.current = window.setInterval(scheduler, intervalMs);
 
     return () => {
-      stopScheduler();
+      if (schedulerRef.current) {
+        clearInterval(schedulerRef.current);
+        schedulerRef.current = null;
+      }
     };
-  }, [enabled]); // Only depend on enabled - everything else uses refs
+  }, [enabled]);
 
   return null;
 }
