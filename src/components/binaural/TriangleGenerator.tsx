@@ -1,5 +1,4 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-
 interface TriangleGeneratorProps {
   carrier: number;
   pulse: number;
@@ -7,55 +6,66 @@ interface TriangleGeneratorProps {
   onPulseChange: (pulse: number) => void;
   disabled?: boolean;
 }
-
-const UI = { width: 220, height: 190, puckRadius: 10, safetyBuffer: 4 };
-const AUDIO_CONFIG = { minCarrier: 50, maxCarrier: 900, minPulse: 0.5, maxPulse: 40 };
-
+const UI = {
+  width: 220,
+  height: 190,
+  puckRadius: 10,
+  safetyBuffer: 4
+};
+const AUDIO_CONFIG = {
+  minCarrier: 50,
+  maxCarrier: 900,
+  minPulse: 0.5,
+  maxPulse: 40
+};
 export function TriangleGenerator({
   carrier,
   pulse,
   onCarrierChange,
   onPulseChange,
-  disabled = false,
+  disabled = false
 }: TriangleGeneratorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const puckRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [currentPos, setCurrentPos] = useState({ x: UI.width / 2, y: UI.height / 2 });
+  const [currentPos, setCurrentPos] = useState({
+    x: UI.width / 2,
+    y: UI.height / 2
+  });
 
   // Convert audio values to position
   const getPositionFromValues = useCallback((c: number, p: number) => {
     const yPercent = (p - AUDIO_CONFIG.minPulse) / (AUDIO_CONFIG.maxPulse - AUDIO_CONFIG.minPulse);
     const targetY = (1 - yPercent) * UI.height;
-
     const mid = (AUDIO_CONFIG.maxCarrier + AUDIO_CONFIG.minCarrier) / 2;
     const range = (AUDIO_CONFIG.maxCarrier - AUDIO_CONFIG.minCarrier) / 2;
     const relativeX = (c - mid) / range;
-
     const center = UI.width / 2;
     const percentHeight = Math.max(0.01, targetY / UI.height);
-    const halfWidth = (UI.width / 2) * percentHeight;
-    const targetX = center + (relativeX * halfWidth);
-
-    return { x: targetX, y: targetY };
+    const halfWidth = UI.width / 2 * percentHeight;
+    const targetX = center + relativeX * halfWidth;
+    return {
+      x: targetX,
+      y: targetY
+    };
   }, []);
 
   // Convert position to audio values
   const getValuesFromPosition = useCallback((x: number, y: number) => {
-    const yPercent = 1 - (y / UI.height);
-    const newPulse = (yPercent * (AUDIO_CONFIG.maxPulse - AUDIO_CONFIG.minPulse)) + AUDIO_CONFIG.minPulse;
-    
+    const yPercent = 1 - y / UI.height;
+    const newPulse = yPercent * (AUDIO_CONFIG.maxPulse - AUDIO_CONFIG.minPulse) + AUDIO_CONFIG.minPulse;
     const percentHeight = Math.max(0.01, y / UI.height);
-    const currentHalfWidth = (UI.width / 2) * percentHeight;
-    let relativeX = (x - (UI.width / 2)) / currentHalfWidth;
+    const currentHalfWidth = UI.width / 2 * percentHeight;
+    let relativeX = (x - UI.width / 2) / currentHalfWidth;
     if (y === 0) relativeX = 0;
-
     const midCarrier = (AUDIO_CONFIG.maxCarrier + AUDIO_CONFIG.minCarrier) / 2;
     const rangeVal = (AUDIO_CONFIG.maxCarrier - AUDIO_CONFIG.minCarrier) / 2;
-    const newCarrier = midCarrier + (relativeX * rangeVal);
-
-    return { carrier: Math.round(newCarrier), pulse: parseFloat(newPulse.toFixed(1)) };
+    const newCarrier = midCarrier + relativeX * rangeVal;
+    return {
+      carrier: Math.round(newCarrier),
+      pulse: parseFloat(newPulse.toFixed(1))
+    };
   }, []);
 
   // Constrain to triangle
@@ -63,15 +73,16 @@ export function TriangleGenerator({
     const maxY = UI.height - UI.puckRadius - UI.safetyBuffer;
     const minY = UI.puckRadius;
     const newY = Math.max(minY, Math.min(y, maxY));
-    
     const percentHeight = newY / UI.height;
-    const currentHalfWidth = (UI.width / 2) * percentHeight;
+    const currentHalfWidth = UI.width / 2 * percentHeight;
     const safeHalfWidth = Math.max(0, currentHalfWidth - UI.puckRadius - UI.safetyBuffer);
-    const minX = (UI.width / 2) - safeHalfWidth;
-    const maxX = (UI.width / 2) + safeHalfWidth;
+    const minX = UI.width / 2 - safeHalfWidth;
+    const maxX = UI.width / 2 + safeHalfWidth;
     const newX = Math.max(minX, Math.min(x, maxX));
-
-    return { x: newX, y: newY };
+    return {
+      x: newX,
+      y: newY
+    };
   }, []);
 
   // Update puck position when carrier/pulse change externally
@@ -86,14 +97,11 @@ export function TriangleGenerator({
   // Handle puck movement
   const handlePuckMove = useCallback((clientX: number, clientY: number) => {
     if (!containerRef.current || disabled) return;
-    
     const rect = containerRef.current.getBoundingClientRect();
     const x = clientX - rect.left;
     const y = clientY - rect.top;
-    
     const constrained = constrainToTriangle(x, y);
     setCurrentPos(constrained);
-    
     const values = getValuesFromPosition(constrained.x, constrained.y);
     onCarrierChange(values.carrier);
     onPulseChange(values.pulse);
@@ -105,13 +113,11 @@ export function TriangleGenerator({
     e.preventDefault();
     setIsDragging(true);
   }, [disabled]);
-
   useEffect(() => {
     const handleMouseUp = () => setIsDragging(false);
     const handleMouseMove = (e: MouseEvent) => {
       if (isDragging) handlePuckMove(e.clientX, e.clientY);
     };
-
     window.addEventListener('mouseup', handleMouseUp);
     window.addEventListener('mousemove', handleMouseMove);
     return () => {
@@ -126,7 +132,6 @@ export function TriangleGenerator({
     e.preventDefault();
     setIsDragging(true);
   }, [disabled]);
-
   useEffect(() => {
     const handleTouchEnd = () => setIsDragging(false);
     const handleTouchMove = (e: TouchEvent) => {
@@ -135,9 +140,10 @@ export function TriangleGenerator({
         handlePuckMove(e.touches[0].clientX, e.touches[0].clientY);
       }
     };
-
     window.addEventListener('touchend', handleTouchEnd);
-    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchmove', handleTouchMove, {
+      passive: false
+    });
     return () => {
       window.removeEventListener('touchend', handleTouchEnd);
       window.removeEventListener('touchmove', handleTouchMove);
@@ -146,24 +152,19 @@ export function TriangleGenerator({
 
   // Puck style calculations
   const percentHeight = Math.max(0.01, currentPos.y / UI.height);
-  const currentHalfWidth = (UI.width / 2) * percentHeight;
-  let relativeX = (currentPos.x - (UI.width / 2)) / currentHalfWidth;
+  const currentHalfWidth = UI.width / 2 * percentHeight;
+  let relativeX = (currentPos.x - UI.width / 2) / currentHalfWidth;
   if (currentPos.y === 0) relativeX = 0;
   const intensity = Math.abs(relativeX);
   const color = relativeX < 0 ? 'hsl(var(--primary))' : 'hsl(var(--accent))';
-
-  return (
-    <div className="panel rounded-lg p-4 mb-4">
-      <h3 className="text-xs uppercase tracking-widest text-accent font-medium mb-3">
+  return <div className="panel rounded-lg p-4 mb-4">
+      <h3 className="text-xs uppercase tracking-widest font-medium mb-3 text-slate-400">
         Frequency Generator
       </h3>
       
-      {disabled ? (
-        <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+      {disabled ? <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
           Select a sequence to use the generator
-        </div>
-      ) : (
-        <>
+        </div> : <>
           {/* Readouts */}
           <div className="flex justify-between mb-3 text-xs">
             <div>
@@ -177,32 +178,20 @@ export function TriangleGenerator({
           </div>
 
           {/* Triangle Area */}
-          <div
-            ref={containerRef}
-            className="relative mx-auto select-none max-w-full"
-            style={{ width: UI.width, height: UI.height, maxWidth: '100%' }}
-          >
+          <div ref={containerRef} className="relative mx-auto select-none max-w-full" style={{
+        width: UI.width,
+        height: UI.height,
+        maxWidth: '100%'
+      }}>
             {/* Triangle Background */}
-            <div
-              className="absolute inset-0"
-              style={{
-                clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)',
-                background: 'linear-gradient(180deg, hsl(var(--primary)/0.2) 0%, hsl(var(--accent)/0.2) 100%)',
-              }}
-            />
+            <div className="absolute inset-0" style={{
+          clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)',
+          background: 'linear-gradient(180deg, hsl(var(--primary)/0.2) 0%, hsl(var(--accent)/0.2) 100%)'
+        }} />
             
             {/* Triangle Border */}
-            <svg
-              className="absolute inset-0 w-full h-full pointer-events-none"
-              viewBox={`0 0 ${UI.width} ${UI.height}`}
-            >
-              <polygon
-                points={`${UI.width / 2},0 0,${UI.height} ${UI.width},${UI.height}`}
-                fill="none"
-                stroke="hsl(var(--accent))"
-                strokeWidth="2"
-                opacity="0.5"
-              />
+            <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox={`0 0 ${UI.width} ${UI.height}`}>
+              <polygon points={`${UI.width / 2},0 0,${UI.height} ${UI.width},${UI.height}`} fill="none" stroke="hsl(var(--accent))" strokeWidth="2" opacity="0.5" />
             </svg>
 
             {/* Grid lines */}
@@ -220,32 +209,19 @@ export function TriangleGenerator({
             </div>
 
             {/* Canvas for wave effect */}
-            <canvas
-              ref={canvasRef}
-              className="absolute inset-0 w-full h-full pointer-events-none opacity-30"
-              width={UI.width}
-              height={UI.height}
-            />
+            <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none opacity-30" width={UI.width} height={UI.height} />
 
             {/* Puck */}
-            <div
-              ref={puckRef}
-              onMouseDown={handleMouseDown}
-              onTouchStart={handleTouchStart}
-              className={`absolute rounded-full cursor-grab transition-shadow ${isDragging ? 'cursor-grabbing' : ''}`}
-              style={{
-                width: UI.puckRadius * 2,
-                height: UI.puckRadius * 2,
-                left: currentPos.x - UI.puckRadius,
-                top: currentPos.y - UI.puckRadius,
-                background: 'radial-gradient(circle at 30% 30%, hsl(var(--foreground)), hsl(var(--muted)))',
-                boxShadow: `0 0 15px white, 0 0 ${20 + intensity * 30}px ${color}`,
-                zIndex: 10,
-              }}
-            />
+            <div ref={puckRef} onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} className={`absolute rounded-full cursor-grab transition-shadow ${isDragging ? 'cursor-grabbing' : ''}`} style={{
+          width: UI.puckRadius * 2,
+          height: UI.puckRadius * 2,
+          left: currentPos.x - UI.puckRadius,
+          top: currentPos.y - UI.puckRadius,
+          background: 'radial-gradient(circle at 30% 30%, hsl(var(--foreground)), hsl(var(--muted)))',
+          boxShadow: `0 0 15px white, 0 0 ${20 + intensity * 30}px ${color}`,
+          zIndex: 10
+        }} />
           </div>
-        </>
-      )}
-    </div>
-  );
+        </>}
+    </div>;
 }

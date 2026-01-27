@@ -574,7 +574,9 @@ export function BinauralWorkstation() {
             <img src={logo} alt="Binaural Extension Logo" className="h-8 md:h-12 w-auto" />
             <div>
               <h1 className="text-xs md:text-sm font-light tracking-[0.3em] text-white">
-                <span className="italic font-normal lowercase" style={{ fontFamily: 'Georgia, serif' }}>i</span>
+                <span className="italic font-normal lowercase" style={{
+                fontFamily: 'Georgia, serif'
+              }}>i</span>
                 <span className="uppercase">BINAURAL</span>
               </h1>
               <div className="flex items-center gap-2 mt-0.5 md:mt-1">
@@ -638,7 +640,7 @@ export function BinauralWorkstation() {
 
           <div className="lg:col-span-3 space-y-4">
             <div className="panel rounded-lg p-3 md:p-4">
-              <h3 className="text-xs uppercase tracking-widest text-accent font-medium mb-3 md:mb-4">
+              <h3 className="text-xs uppercase tracking-widest font-medium mb-3 md:mb-4 text-slate-400">
                 Sequence Editor
               </h3>
               <SectionList sections={track.sections} currentSectionIndex={currentSectionIndex} selectedIndices={selectedIndices} activeEditIndex={activeEditIndex} testingIndex={testingIndex} onSectionsChange={handleSectionsChange} onTestSection={handleTestSection} onStopTest={stopTest} onToggleSelect={handleToggleSelect} onEditClick={handleSectionEditClick} onSaveAsPreset={handleSaveAsPreset} />
