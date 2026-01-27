@@ -573,7 +573,10 @@ export function BinauralWorkstation() {
           <div className="flex items-center gap-3">
             <img src={logo} alt="Binaural Extension Logo" className="h-8 md:h-12 w-auto" />
             <div>
-              <h1 className="text-xs md:text-sm font-light uppercase tracking-[0.3em] text-white">iBINAURAL</h1>
+              <h1 className="text-xs md:text-sm font-light tracking-[0.3em] text-white">
+                <span className="italic font-normal lowercase" style={{ fontFamily: 'Georgia, serif' }}>i</span>
+                <span className="uppercase">BINAURAL</span>
+              </h1>
               <div className="flex items-center gap-2 mt-0.5 md:mt-1">
                 <h2 className="text-lg md:text-2xl font-semibold text-white">Beat Lab</h2>
                 <span className="text-[8px] md:text-[10px] uppercase tracking-wider px-1.5 md:px-2 py-0.5 bg-accent/20 text-accent border border-accent/50 rounded">
