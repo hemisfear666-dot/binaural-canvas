@@ -50,10 +50,6 @@ export default {
           foreground: "hsl(var(--accent-foreground))",
           glow: "hsl(var(--accent-glow))",
         },
-        tiger: {
-          DEFAULT: "hsl(var(--tiger))",
-          glow: "hsl(var(--tiger-glow))",
-        },
         popover: {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
