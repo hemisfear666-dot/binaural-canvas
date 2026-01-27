@@ -5,7 +5,7 @@ const Index = () => {
   return (
     <>
       <Helmet>
-        <title>Binaural Extension | Beat Lab - Create Custom Binaural Beats</title>
+        <title>iBinaural | Beat Lab - Create Custom Binaural Beats</title>
         <meta 
           name="description" 
           content="Create and customize binaural beats with our intuitive DAW-style sequencer. Design meditation sessions, focus tracks, and brainwave entrainment audio."
