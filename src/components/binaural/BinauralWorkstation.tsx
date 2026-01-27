@@ -24,50 +24,100 @@ import { Button } from '@/components/ui/button';
 import { Copy, Trash2, CheckSquare, Square } from 'lucide-react';
 import { toast } from 'sonner';
 import logo from '@/assets/logo.png';
-
 const STORAGE_KEY = 'binaural-workstation-track';
-
-const defaultSections: Section[] = [
-  { id: 'intro', name: 'Intro - Relaxation', duration: 60, carrier: 100, beat: 7.83, volume: 0.7, muted: false },
-  { id: 'alpha', name: 'Alpha Waves', duration: 120, carrier: 200, beat: 10, volume: 0.8, muted: false },
-  { id: 'theta', name: 'Deep Theta', duration: 180, carrier: 180, beat: 6, volume: 0.8, muted: false },
-  { id: 'gamma', name: 'Gamma Focus', duration: 90, carrier: 220, beat: 40, volume: 0.75, muted: false },
-  { id: 'outro', name: 'Gentle Return', duration: 60, carrier: 100, beat: 14, volume: 0.6, muted: false },
-];
-
+const defaultSections: Section[] = [{
+  id: 'intro',
+  name: 'Intro - Relaxation',
+  duration: 60,
+  carrier: 100,
+  beat: 7.83,
+  volume: 0.7,
+  muted: false
+}, {
+  id: 'alpha',
+  name: 'Alpha Waves',
+  duration: 120,
+  carrier: 200,
+  beat: 10,
+  volume: 0.8,
+  muted: false
+}, {
+  id: 'theta',
+  name: 'Deep Theta',
+  duration: 180,
+  carrier: 180,
+  beat: 6,
+  volume: 0.8,
+  muted: false
+}, {
+  id: 'gamma',
+  name: 'Gamma Focus',
+  duration: 90,
+  carrier: 220,
+  beat: 40,
+  volume: 0.75,
+  muted: false
+}, {
+  id: 'outro',
+  name: 'Gentle Return',
+  duration: 60,
+  carrier: 100,
+  beat: 14,
+  volume: 0.6,
+  muted: false
+}];
 const defaultNoiseSettings: NoiseSettings = {
   type: 'pink',
   volume: 0.3,
-  enabled: false,
+  enabled: false
 };
-
 const defaultAmbienceSettings: AmbienceSettings = {
   type: 'none',
   volume: 0.4,
-  enabled: false,
+  enabled: false
 };
-
 const defaultAmbientMusicSettings: AmbientMusicSettings = {
   type: 'soothing',
   volume: 0.35,
-  enabled: false,
+  enabled: false
 };
-
 const defaultSingleEffects = {
-  reverb: { enabled: false, amount: 0.3 },
-  lowpass: { enabled: false, frequency: 2000 },
-  autoPan: { enabled: false, rate: 0.1, depth: 0.5 },
-  audio3d: { enabled: false, intensity: 0.5 },
-  timeshift: { enabled: false, rate: 1.0 },
+  reverb: {
+    enabled: false,
+    amount: 0.3
+  },
+  lowpass: {
+    enabled: false,
+    frequency: 2000
+  },
+  autoPan: {
+    enabled: false,
+    rate: 0.1,
+    depth: 0.5
+  },
+  audio3d: {
+    enabled: false,
+    intensity: 0.5
+  },
+  timeshift: {
+    enabled: false,
+    rate: 1.0
+  }
 };
-
 const defaultEffectsSettings: EffectsSettings = {
-  song: { ...defaultSingleEffects },
-  soundscape: { ...defaultSingleEffects },
-  noise: { ...defaultSingleEffects },
-  ambientMusic: { ...defaultSingleEffects },
+  song: {
+    ...defaultSingleEffects
+  },
+  soundscape: {
+    ...defaultSingleEffects
+  },
+  noise: {
+    ...defaultSingleEffects
+  },
+  ambientMusic: {
+    ...defaultSingleEffects
+  }
 };
-
 const defaultTrack: Track = {
   title: 'My Binaural Session',
   sections: defaultSections,
@@ -78,7 +128,7 @@ const defaultTrack: Track = {
   noise: defaultNoiseSettings,
   ambience: defaultAmbienceSettings,
   ambientMusic: defaultAmbientMusicSettings,
-  effects: defaultEffectsSettings,
+  effects: defaultEffectsSettings
 };
 
 // Load saved track from localStorage
@@ -87,85 +137,73 @@ const loadSavedTrack = (): Track => {
     const n = typeof v === 'number' && Number.isFinite(v) ? v : fallback;
     return Math.max(0, Math.min(1, n));
   };
-
   const isWaveform = (v: unknown): v is WaveformType => v === 'sine' || v === 'triangle' || v === 'sawtooth';
   const isNoiseType = (v: unknown): v is NoiseType => v === 'white' || v === 'pink' || v === 'brown';
   const isAmbienceType = (v: unknown): v is AmbienceType => v === 'none' || v === 'rain' || v === 'forest' || v === 'drone' || v === 'windchimes' || v === 'gongs' || v === 'ocean' || v === 'fan';
-
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-
       if (parsed && parsed.sections && Array.isArray(parsed.sections)) {
         const parsedNoise = parsed.noise ?? {};
         const parsedAmbience = parsed.ambience ?? {};
         const parsedEffects = parsed.effects ?? {};
-
         const noise: NoiseSettings = {
           type: isNoiseType(parsedNoise.type) ? parsedNoise.type : defaultNoiseSettings.type,
           volume: clamp01(parsedNoise.volume, defaultNoiseSettings.volume),
-          enabled: typeof parsedNoise.enabled === 'boolean' ? parsedNoise.enabled : defaultNoiseSettings.enabled,
+          enabled: typeof parsedNoise.enabled === 'boolean' ? parsedNoise.enabled : defaultNoiseSettings.enabled
         };
-
         const ambience: AmbienceSettings = {
           type: isAmbienceType(parsedAmbience.type) ? parsedAmbience.type : defaultAmbienceSettings.type,
           volume: clamp01(parsedAmbience.volume, defaultAmbienceSettings.volume),
-          enabled: typeof parsedAmbience.enabled === 'boolean' ? parsedAmbience.enabled : defaultAmbienceSettings.enabled,
+          enabled: typeof parsedAmbience.enabled === 'boolean' ? parsedAmbience.enabled : defaultAmbienceSettings.enabled
         };
 
         // Parse multi-target effects (with backwards compatibility for old single-target format)
         const parseSingleEffects = (src: any, defaults: typeof defaultSingleEffects) => ({
           reverb: {
             enabled: typeof src?.reverb?.enabled === 'boolean' ? src.reverb.enabled : defaults.reverb.enabled,
-            amount: clamp01(src?.reverb?.amount, defaults.reverb.amount),
+            amount: clamp01(src?.reverb?.amount, defaults.reverb.amount)
           },
           lowpass: {
             enabled: typeof src?.lowpass?.enabled === 'boolean' ? src.lowpass.enabled : defaults.lowpass.enabled,
-            frequency:
-              typeof src?.lowpass?.frequency === 'number' && Number.isFinite(src.lowpass.frequency)
-                ? src.lowpass.frequency
-                : defaults.lowpass.frequency,
+            frequency: typeof src?.lowpass?.frequency === 'number' && Number.isFinite(src.lowpass.frequency) ? src.lowpass.frequency : defaults.lowpass.frequency
           },
           autoPan: {
             enabled: typeof src?.autoPan?.enabled === 'boolean' ? src.autoPan.enabled : defaults.autoPan.enabled,
-            rate:
-              typeof src?.autoPan?.rate === 'number' && Number.isFinite(src.autoPan.rate)
-                ? src.autoPan.rate
-                : defaults.autoPan.rate,
-            depth: clamp01(src?.autoPan?.depth, defaults.autoPan.depth),
+            rate: typeof src?.autoPan?.rate === 'number' && Number.isFinite(src.autoPan.rate) ? src.autoPan.rate : defaults.autoPan.rate,
+            depth: clamp01(src?.autoPan?.depth, defaults.autoPan.depth)
           },
           audio3d: {
             enabled: typeof src?.audio3d?.enabled === 'boolean' ? src.audio3d.enabled : defaults.audio3d.enabled,
-            intensity: clamp01(src?.audio3d?.intensity, defaults.audio3d.intensity),
+            intensity: clamp01(src?.audio3d?.intensity, defaults.audio3d.intensity)
           },
           timeshift: {
             enabled: typeof src?.timeshift?.enabled === 'boolean' ? src.timeshift.enabled : defaults.timeshift.enabled,
-            rate:
-              typeof src?.timeshift?.rate === 'number' && Number.isFinite(src.timeshift.rate)
-                ? Math.max(0.5, Math.min(5.0, src.timeshift.rate))
-                : defaults.timeshift.rate,
-          },
+            rate: typeof src?.timeshift?.rate === 'number' && Number.isFinite(src.timeshift.rate) ? Math.max(0.5, Math.min(5.0, src.timeshift.rate)) : defaults.timeshift.rate
+          }
         });
 
         // Check if it's the new multi-target format or legacy single-target
         const isMultiTarget = parsedEffects?.song || parsedEffects?.soundscape || parsedEffects?.noise;
-        
-        const effects: EffectsSettings = isMultiTarget
-          ? {
-              song: parseSingleEffects(parsedEffects.song, defaultSingleEffects),
-              soundscape: parseSingleEffects(parsedEffects.soundscape, defaultSingleEffects),
-              noise: parseSingleEffects(parsedEffects.noise, defaultSingleEffects),
-              ambientMusic: parseSingleEffects(parsedEffects.ambientMusic, defaultSingleEffects),
-            }
-          : {
-              // Migrate legacy format: apply old effects to song only
-              song: parseSingleEffects(parsedEffects, defaultSingleEffects),
-              soundscape: { ...defaultSingleEffects },
-              noise: { ...defaultSingleEffects },
-              ambientMusic: { ...defaultSingleEffects },
-            };
-
+        const effects: EffectsSettings = isMultiTarget ? {
+          song: parseSingleEffects(parsedEffects.song, defaultSingleEffects),
+          soundscape: parseSingleEffects(parsedEffects.soundscape, defaultSingleEffects),
+          noise: parseSingleEffects(parsedEffects.noise, defaultSingleEffects),
+          ambientMusic: parseSingleEffects(parsedEffects.ambientMusic, defaultSingleEffects)
+        } : {
+          // Migrate legacy format: apply old effects to song only
+          song: parseSingleEffects(parsedEffects, defaultSingleEffects),
+          soundscape: {
+            ...defaultSingleEffects
+          },
+          noise: {
+            ...defaultSingleEffects
+          },
+          ambientMusic: {
+            ...defaultSingleEffects
+          }
+        };
         return {
           ...defaultTrack,
           ...parsed,
@@ -173,7 +211,7 @@ const loadSavedTrack = (): Track => {
           waveform: isWaveform(parsed.waveform) ? parsed.waveform : defaultTrack.waveform,
           noise,
           ambience,
-          effects,
+          effects
         } as Track;
       }
     }
@@ -182,7 +220,6 @@ const loadSavedTrack = (): Track => {
   }
   return defaultTrack;
 };
-
 export function BinauralWorkstation() {
   const {
     state: track,
@@ -191,9 +228,8 @@ export function BinauralWorkstation() {
     redo,
     reset: resetTrack,
     canUndo,
-    canRedo,
+    canRedo
   } = useHistory<Track>(loadSavedTrack());
-
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
   const [activeEditIndex, setActiveEditIndex] = useState<number | null>(0);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -204,16 +240,14 @@ export function BinauralWorkstation() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Custom presets management
-  const { presets: customPresets, addPreset: addCustomPreset, deletePreset: deleteCustomPreset } = useCustomPresets();
+  const {
+    presets: customPresets,
+    addPreset: addCustomPreset,
+    deletePreset: deleteCustomPreset
+  } = useCustomPresets();
 
   // Shared mixer (tones + background layers + FX)
-  const mixer = useAudioMixer(
-    track.masterVolume,
-    track.noise.volume,
-    track.ambience.volume,
-    track.ambientMusic.volume,
-    track.effects
-  );
+  const mixer = useAudioMixer(track.masterVolume, track.noise.volume, track.ambience.volume, track.ambientMusic.volume, track.effects);
 
   // Save track to localStorage whenever it changes
   useEffect(() => {
@@ -223,7 +257,6 @@ export function BinauralWorkstation() {
       console.warn('Failed to save track:', e);
     }
   }, [track]);
-
   const {
     playbackState,
     currentTime,
@@ -235,14 +268,8 @@ export function BinauralWorkstation() {
     testSection,
     stopTest,
     seekTo,
-    getTotalDuration,
-  } = useAudioEngine(
-    track.sections,
-    track.isIsochronic,
-    track.waveform,
-    mixer.ensure,
-    mixer.getToneInput
-  );
+    getTotalDuration
+  } = useAudioEngine(track.sections, track.isIsochronic, track.waveform, mixer.ensure, mixer.getToneInput);
 
   // Wrap stop to also kill reverb tail immediately
   const stop = useCallback(() => {
@@ -253,52 +280,38 @@ export function BinauralWorkstation() {
   }, [engineStop, mixer]);
 
   // Background audio layers with preview support (routed into the shared mixer)
-  const { startPreview: startNoisePreview, stopPreview: stopNoisePreview } = useNoiseGenerator(
-    mixer.ensure,
-    mixer.getNoiseInput,
-    track.noise.enabled && playbackState === 'playing',
-    track.noise.type
-  );
-
-  const { startPreview: startAmbiencePreview, stopPreview: stopAmbiencePreview } = useAmbiencePlayer(
-    mixer.ensure,
-    mixer.getAmbienceInput,
-    track.ambience.enabled && playbackState === 'playing',
-    track.ambience.type
-  );
-
-  const { startPreview: startAmbientMusicPreview, stopPreview: stopAmbientMusicPreview } = useAmbientMusicPlayer(
-    mixer.ensure,
-    mixer.getAmbientMusicInput,
-    track.ambientMusic.enabled && playbackState === 'playing',
-    track.ambientMusic.type
-  );
+  const {
+    startPreview: startNoisePreview,
+    stopPreview: stopNoisePreview
+  } = useNoiseGenerator(mixer.ensure, mixer.getNoiseInput, track.noise.enabled && playbackState === 'playing', track.noise.type);
+  const {
+    startPreview: startAmbiencePreview,
+    stopPreview: stopAmbiencePreview
+  } = useAmbiencePlayer(mixer.ensure, mixer.getAmbienceInput, track.ambience.enabled && playbackState === 'playing', track.ambience.type);
+  const {
+    startPreview: startAmbientMusicPreview,
+    stopPreview: stopAmbientMusicPreview
+  } = useAmbientMusicPlayer(mixer.ensure, mixer.getAmbientMusicInput, track.ambientMusic.enabled && playbackState === 'playing', track.ambientMusic.type);
 
   // Preview handlers
   const handlePreviewNoise = useCallback((type: NoiseType) => {
     startNoisePreview(type);
   }, [startNoisePreview]);
-
   const handleStopPreviewNoise = useCallback(() => {
     stopNoisePreview();
   }, [stopNoisePreview]);
-
   const handlePreviewAmbience = useCallback((type: AmbienceType) => {
     startAmbiencePreview(type);
   }, [startAmbiencePreview]);
-
   const handleStopPreviewAmbience = useCallback(() => {
     stopAmbiencePreview();
   }, [stopAmbiencePreview]);
-
   const handlePreviewAmbientMusic = useCallback((type: AmbientMusicType) => {
     startAmbientMusicPreview(type);
   }, [startAmbientMusicPreview]);
-
   const handleStopPreviewAmbientMusic = useCallback(() => {
     stopAmbientMusicPreview();
   }, [stopAmbientMusicPreview]);
-
   const totalDuration = useMemo(() => getTotalDuration(), [getTotalDuration]);
 
   // Status message
@@ -317,38 +330,40 @@ export function BinauralWorkstation() {
 
   // Handlers
   const handleSectionsChange = useCallback((sections: Section[]) => {
-    setTrack((prev) => ({ ...prev, sections }));
+    setTrack(prev => ({
+      ...prev,
+      sections
+    }));
   }, [setTrack]);
-
   const handleVolumeChange = useCallback((masterVolume: number) => {
-    setTrack((prev) => ({ ...prev, masterVolume }));
+    setTrack(prev => ({
+      ...prev,
+      masterVolume
+    }));
   }, [setTrack]);
-
   const handleModeChange = useCallback((isIsochronic: boolean) => {
-    setTrack((prev) => ({ ...prev, isIsochronic }));
+    setTrack(prev => ({
+      ...prev,
+      isIsochronic
+    }));
   }, [setTrack]);
-
   const handleTitleChange = useCallback((title: string) => {
-    setTrack((prev) => ({ ...prev, title }));
+    setTrack(prev => ({
+      ...prev,
+      title
+    }));
   }, [setTrack]);
-
   const handleImport = useCallback((importedTrack: Track) => {
     resetTrack(importedTrack);
     setSelectedIndices(new Set());
   }, [resetTrack]);
-
   const handlePlay = useCallback(() => {
     mixer.ensure();
     play(currentTime);
   }, [mixer, play, currentTime]);
-
-  const handleTestSection = useCallback(
-    (index: number) => {
-      testSection(index);
-    },
-    [testSection]
-  );
-
+  const handleTestSection = useCallback((index: number) => {
+    testSection(index);
+  }, [testSection]);
   const handleSectionClick = useCallback((index: number) => {
     let time = 0;
     for (let i = 0; i < index; i++) {
@@ -359,7 +374,7 @@ export function BinauralWorkstation() {
 
   // Selection handlers
   const handleToggleSelect = useCallback((index: number) => {
-    setSelectedIndices((prev) => {
+    setSelectedIndices(prev => {
       const next = new Set(prev);
       if (next.has(index)) {
         next.delete(index);
@@ -369,15 +384,12 @@ export function BinauralWorkstation() {
       return next;
     });
   }, []);
-
   const handleSelectAll = useCallback(() => {
     setSelectedIndices(new Set(track.sections.map((_, i) => i)));
   }, [track.sections]);
-
   const handleDeselectAll = useCallback(() => {
     setSelectedIndices(new Set());
   }, []);
-
   const handleDeleteSelected = useCallback(() => {
     if (selectedIndices.size === 0) {
       toast.error('No sections selected');
@@ -388,7 +400,6 @@ export function BinauralWorkstation() {
     setSelectedIndices(new Set());
     toast.success(`Deleted ${selectedIndices.size} section(s)`);
   }, [selectedIndices, track.sections, handleSectionsChange]);
-
   const handleDuplicateSelected = useCallback(() => {
     if (selectedIndices.size === 0) {
       toast.error('No sections selected');
@@ -396,12 +407,12 @@ export function BinauralWorkstation() {
     }
     const indices = Array.from(selectedIndices).sort((a, b) => b - a);
     let newSections = [...track.sections];
-    indices.forEach((index) => {
+    indices.forEach(index => {
       const original = newSections[index];
       const duplicate: Section = {
         ...original,
         id: `${original.id}_copy_${Date.now()}`,
-        name: `${original.name} (Copy)`,
+        name: `${original.name} (Copy)`
       };
       newSections.splice(index + 1, 0, duplicate);
     });
@@ -413,7 +424,6 @@ export function BinauralWorkstation() {
   const handleSkip = useCallback((seconds: number) => {
     seekTo(Math.max(0, Math.min(currentTime + seconds, totalDuration)));
   }, [currentTime, totalDuration, seekTo]);
-
   const handlePrevSection = useCallback(() => {
     if (currentSectionIndex !== null && currentSectionIndex > 0) {
       handleSectionClick(currentSectionIndex - 1);
@@ -421,7 +431,6 @@ export function BinauralWorkstation() {
       seekTo(0);
     }
   }, [currentSectionIndex, handleSectionClick, seekTo]);
-
   const handleNextSection = useCallback(() => {
     if (currentSectionIndex !== null && currentSectionIndex < track.sections.length - 1) {
       handleSectionClick(currentSectionIndex + 1);
@@ -430,13 +439,11 @@ export function BinauralWorkstation() {
 
   // Zoom handlers
   const handleZoomIn = useCallback(() => {
-    setPixelsPerSecond((prev) => Math.min(prev * 1.5, 50));
+    setPixelsPerSecond(prev => Math.min(prev * 1.5, 50));
   }, []);
-
   const handleZoomOut = useCallback(() => {
-    setPixelsPerSecond((prev) => Math.max(prev / 1.5, 1));
+    setPixelsPerSecond(prev => Math.max(prev / 1.5, 1));
   }, []);
-
   const handleFitToView = useCallback(() => {
     if (containerRef.current && totalDuration > 0) {
       const containerWidth = containerRef.current.offsetWidth - 48;
@@ -448,7 +455,7 @@ export function BinauralWorkstation() {
   const handleAddPreset = useCallback((preset: Omit<Section, 'id'>) => {
     const newSection: Section = {
       ...preset,
-      id: `preset_${Date.now()}`,
+      id: `preset_${Date.now()}`
     };
     handleSectionsChange([...track.sections, newSection]);
     toast.success(`Added "${preset.name}"`);
@@ -459,7 +466,6 @@ export function BinauralWorkstation() {
     setSectionToSave(section);
     setSavePresetDialogOpen(true);
   }, []);
-
   const handleConfirmSavePreset = useCallback((name: string) => {
     if (sectionToSave) {
       addCustomPreset(sectionToSave, name);
@@ -473,56 +479,84 @@ export function BinauralWorkstation() {
 
   // BPM handler
   const handleBpmChange = useCallback((bpm: number) => {
-    setTrack((prev) => ({ ...prev, bpm: Math.max(20, Math.min(300, bpm)) }));
+    setTrack(prev => ({
+      ...prev,
+      bpm: Math.max(20, Math.min(300, bpm))
+    }));
   }, [setTrack]);
 
   // Waveform handler
   const handleWaveformChange = useCallback((waveform: WaveformType) => {
-    setTrack((prev) => ({ ...prev, waveform }));
+    setTrack(prev => ({
+      ...prev,
+      waveform
+    }));
   }, [setTrack]);
 
   // Noise settings handler
   const handleNoiseChange = useCallback((noise: NoiseSettings) => {
-    setTrack((prev) => ({ ...prev, noise }));
+    setTrack(prev => ({
+      ...prev,
+      noise
+    }));
   }, [setTrack]);
 
   // Ambience settings handler
   const handleAmbienceChange = useCallback((ambience: AmbienceSettings) => {
-    setTrack((prev) => ({ ...prev, ambience }));
+    setTrack(prev => ({
+      ...prev,
+      ambience
+    }));
   }, [setTrack]);
 
   // Ambient music settings handler
   const handleAmbientMusicChange = useCallback((ambientMusic: AmbientMusicSettings) => {
-    setTrack((prev) => ({ ...prev, ambientMusic }));
+    setTrack(prev => ({
+      ...prev,
+      ambientMusic
+    }));
   }, [setTrack]);
 
   // Effects settings handler
   const handleEffectsChange = useCallback((effects: EffectsSettings) => {
-    setTrack((prev) => ({ ...prev, effects }));
+    setTrack(prev => ({
+      ...prev,
+      effects
+    }));
   }, [setTrack]);
 
   // Active section for triangle generator
   const activeSection = activeEditIndex !== null ? track.sections[activeEditIndex] : null;
-
   const handleGeneratorCarrierChange = useCallback((carrier: number) => {
     if (activeEditIndex === null) return;
-    setTrack((prev) => {
+    setTrack(prev => {
       const sections = [...prev.sections];
       const s = sections[activeEditIndex];
       if (!s) return prev;
-      sections[activeEditIndex] = { ...s, carrier };
-      return { ...prev, sections };
+      sections[activeEditIndex] = {
+        ...s,
+        carrier
+      };
+      return {
+        ...prev,
+        sections
+      };
     });
   }, [activeEditIndex, setTrack]);
-
   const handleGeneratorPulseChange = useCallback((pulse: number) => {
     if (activeEditIndex === null) return;
-    setTrack((prev) => {
+    setTrack(prev => {
       const sections = [...prev.sections];
       const s = sections[activeEditIndex];
       if (!s) return prev;
-      sections[activeEditIndex] = { ...s, beat: pulse };
-      return { ...prev, sections };
+      sections[activeEditIndex] = {
+        ...s,
+        beat: pulse
+      };
+      return {
+        ...prev,
+        sections
+      };
     });
   }, [activeEditIndex, setTrack]);
 
@@ -530,18 +564,16 @@ export function BinauralWorkstation() {
   const handleSectionEditClick = useCallback((index: number) => {
     setActiveEditIndex(prev => prev === index ? null : index);
   }, []);
-
-  return (
-    <div className="min-h-screen pb-16 md:pb-12" style={{ background: 'var(--gradient-void)' }}>
+  return <div className="min-h-screen pb-16 md:pb-12" style={{
+    background: 'var(--gradient-void)'
+  }}>
       {/* Header */}
       <header className="p-3 md:p-6 border-b border-accent/20">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <img src={logo} alt="Binaural Extension Logo" className="h-8 md:h-12 w-auto" />
             <div>
-              <h1 className="text-xs md:text-sm font-light uppercase tracking-[0.3em] text-white">
-                Binaural Extension
-              </h1>
+              <h1 className="text-xs md:text-sm font-light uppercase tracking-[0.3em] text-white">iBINAURAL</h1>
               <div className="flex items-center gap-2 mt-0.5 md:mt-1">
                 <h2 className="text-lg md:text-2xl font-semibold text-white">Beat Lab</h2>
                 <span className="text-[8px] md:text-[10px] uppercase tracking-wider px-1.5 md:px-2 py-0.5 bg-accent/20 text-accent border border-accent/50 rounded">
@@ -551,14 +583,7 @@ export function BinauralWorkstation() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <TransportControls
-              playbackState={playbackState}
-              currentTime={currentTime}
-              totalDuration={totalDuration}
-              onPlay={handlePlay}
-              onPause={pause}
-              onStop={stop}
-            />
+            <TransportControls playbackState={playbackState} currentTime={currentTime} totalDuration={totalDuration} onPlay={handlePlay} onPause={pause} onStop={stop} />
           </div>
         </div>
       </header>
@@ -568,119 +593,44 @@ export function BinauralWorkstation() {
         {/* Global Controls + Toolbar */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 md:gap-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-4">
-            <GlobalControls
-              masterVolume={track.masterVolume}
-              onVolumeChange={handleVolumeChange}
-              isIsochronic={track.isIsochronic}
-              onModeChange={handleModeChange}
-            />
+            <GlobalControls masterVolume={track.masterVolume} onVolumeChange={handleVolumeChange} isIsochronic={track.isIsochronic} onModeChange={handleModeChange} />
             {/* Waveform Selector */}
-            <WaveformSelector
-              waveform={track.waveform}
-              onWaveformChange={handleWaveformChange}
-            />
+            <WaveformSelector waveform={track.waveform} onWaveformChange={handleWaveformChange} />
           </div>
           <div className="flex items-center gap-0.5 md:gap-1 flex-wrap">
 
             {/* Selection actions */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={selectedIndices.size === track.sections.length ? handleDeselectAll : handleSelectAll}
-              className="h-7 md:h-8 px-1.5 md:px-2 text-muted-foreground hover:text-primary text-xs"
-            >
-              {selectedIndices.size === track.sections.length ? (
-                <Square className="h-3.5 w-3.5 mr-0.5" />
-              ) : (
-                <CheckSquare className="h-3.5 w-3.5 mr-0.5" />
-              )}
+            <Button variant="ghost" size="sm" onClick={selectedIndices.size === track.sections.length ? handleDeselectAll : handleSelectAll} className="h-7 md:h-8 px-1.5 md:px-2 text-muted-foreground hover:text-primary text-xs">
+              {selectedIndices.size === track.sections.length ? <Square className="h-3.5 w-3.5 mr-0.5" /> : <CheckSquare className="h-3.5 w-3.5 mr-0.5" />}
               <span className="hidden sm:inline">{selectedIndices.size > 0 ? `${selectedIndices.size}` : 'All'}</span>
               <span className="sm:hidden">{selectedIndices.size > 0 ? selectedIndices.size : 'All'}</span>
             </Button>
 
-            {selectedIndices.size > 0 && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleDuplicateSelected}
-                  className="h-7 md:h-8 px-1.5 md:px-2 text-primary hover:text-primary hover:bg-primary/10"
-                >
+            {selectedIndices.size > 0 && <>
+                <Button variant="ghost" size="sm" onClick={handleDuplicateSelected} className="h-7 md:h-8 px-1.5 md:px-2 text-primary hover:text-primary hover:bg-primary/10">
                   <Copy className="h-3.5 w-3.5" />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleDeleteSelected}
-                  className="h-7 md:h-8 px-1.5 md:px-2 text-accent hover:text-accent hover:bg-accent/10"
-                >
+                <Button variant="ghost" size="sm" onClick={handleDeleteSelected} className="h-7 md:h-8 px-1.5 md:px-2 text-accent hover:text-accent hover:bg-accent/10">
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
-              </>
-            )}
+              </>}
 
             <div className="w-px h-5 bg-border mx-0.5 md:mx-1" />
 
-            <PresetLibrary 
-              onAddPreset={handleAddPreset} 
-              customPresets={customPresets}
-              onDeleteCustomPreset={deleteCustomPreset}
-            />
+            <PresetLibrary onAddPreset={handleAddPreset} customPresets={customPresets} onDeleteCustomPreset={deleteCustomPreset} />
 
-            <KeyboardShortcuts
-              isOpen={helpOpen}
-              onOpenChange={setHelpOpen}
-              onPlay={handlePlay}
-              onPause={pause}
-              onStop={stop}
-              onSkip={handleSkip}
-              onNextSection={handleNextSection}
-              onPrevSection={handlePrevSection}
-              onUndo={undo}
-              onRedo={redo}
-              onSelectAll={handleSelectAll}
-              onDeleteSelected={handleDeleteSelected}
-              onDuplicateSelected={handleDuplicateSelected}
-              onDeselectAll={handleDeselectAll}
-              onZoomIn={handleZoomIn}
-              onZoomOut={handleZoomOut}
-              isPlaying={playbackState === 'playing'}
-            />
+            <KeyboardShortcuts isOpen={helpOpen} onOpenChange={setHelpOpen} onPlay={handlePlay} onPause={pause} onStop={stop} onSkip={handleSkip} onNextSection={handleNextSection} onPrevSection={handlePrevSection} onUndo={undo} onRedo={redo} onSelectAll={handleSelectAll} onDeleteSelected={handleDeleteSelected} onDuplicateSelected={handleDuplicateSelected} onDeselectAll={handleDeselectAll} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} isPlaying={playbackState === 'playing'} />
           </div>
         </div>
 
         {/* Timeline Visualization */}
-        <Timeline
-          sections={track.sections}
-          currentTime={currentTime}
-          currentSectionIndex={currentSectionIndex}
-          pixelsPerSecond={pixelsPerSecond}
-          bpm={track.bpm}
-          onBpmChange={handleBpmChange}
-          onSeek={seekTo}
-          onSectionClick={handleSectionClick}
-          onZoomIn={handleZoomIn}
-          onZoomOut={handleZoomOut}
-          onFitToView={handleFitToView}
-          canUndo={canUndo}
-          canRedo={canRedo}
-          onUndo={undo}
-          onRedo={redo}
-          metronomeEnabled={metronomeEnabled}
-          onMetronomeChange={setMetronomeEnabled}
-        />
+        <Timeline sections={track.sections} currentTime={currentTime} currentSectionIndex={currentSectionIndex} pixelsPerSecond={pixelsPerSecond} bpm={track.bpm} onBpmChange={handleBpmChange} onSeek={seekTo} onSectionClick={handleSectionClick} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onFitToView={handleFitToView} canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} metronomeEnabled={metronomeEnabled} onMetronomeChange={setMetronomeEnabled} />
 
         {/* Section Editor */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
           {/* Mobile: Generator first for quick access */}
           <div className="lg:hidden space-y-4">
-            <TriangleGenerator
-              carrier={activeSection?.carrier ?? 200}
-              pulse={activeSection?.beat ?? 10}
-              onCarrierChange={handleGeneratorCarrierChange}
-              onPulseChange={handleGeneratorPulseChange}
-              disabled={activeEditIndex === null}
-            />
+            <TriangleGenerator carrier={activeSection?.carrier ?? 200} pulse={activeSection?.beat ?? 10} onCarrierChange={handleGeneratorCarrierChange} onPulseChange={handleGeneratorPulseChange} disabled={activeEditIndex === null} />
           </div>
 
           <div className="lg:col-span-3 space-y-4">
@@ -688,98 +638,32 @@ export function BinauralWorkstation() {
               <h3 className="text-xs uppercase tracking-widest text-accent font-medium mb-3 md:mb-4">
                 Sequence Editor
               </h3>
-              <SectionList
-                sections={track.sections}
-                currentSectionIndex={currentSectionIndex}
-                selectedIndices={selectedIndices}
-                activeEditIndex={activeEditIndex}
-                testingIndex={testingIndex}
-                onSectionsChange={handleSectionsChange}
-                onTestSection={handleTestSection}
-                onStopTest={stopTest}
-                onToggleSelect={handleToggleSelect}
-                onEditClick={handleSectionEditClick}
-                onSaveAsPreset={handleSaveAsPreset}
-              />
+              <SectionList sections={track.sections} currentSectionIndex={currentSectionIndex} selectedIndices={selectedIndices} activeEditIndex={activeEditIndex} testingIndex={testingIndex} onSectionsChange={handleSectionsChange} onTestSection={handleTestSection} onStopTest={stopTest} onToggleSelect={handleToggleSelect} onEditClick={handleSectionEditClick} onSaveAsPreset={handleSaveAsPreset} />
             </div>
 
             {/* Effects Rack - directly beneath sequence editor */}
-            <EffectsRack
-              effects={track.effects}
-              onEffectsChange={handleEffectsChange}
-            />
+            <EffectsRack effects={track.effects} onEffectsChange={handleEffectsChange} />
           </div>
 
           {/* Desktop: Generator on side */}
           <div className="hidden lg:block lg:col-span-1 space-y-4">
-            <TriangleGenerator
-              carrier={activeSection?.carrier ?? 200}
-              pulse={activeSection?.beat ?? 10}
-              onCarrierChange={handleGeneratorCarrierChange}
-              onPulseChange={handleGeneratorPulseChange}
-              disabled={activeEditIndex === null}
-            />
-            <AudioLayers
-              noise={track.noise}
-              ambience={track.ambience}
-              ambientMusic={track.ambientMusic}
-              onNoiseChange={handleNoiseChange}
-              onAmbienceChange={handleAmbienceChange}
-              onAmbientMusicChange={handleAmbientMusicChange}
-              onPreviewNoise={handlePreviewNoise}
-              onStopPreviewNoise={handleStopPreviewNoise}
-              onPreviewAmbience={handlePreviewAmbience}
-              onStopPreviewAmbience={handleStopPreviewAmbience}
-              onPreviewAmbientMusic={handlePreviewAmbientMusic}
-              onStopPreviewAmbientMusic={handleStopPreviewAmbientMusic}
-            />
-            <ImportExport
-              track={track}
-              onImport={handleImport}
-              onTitleChange={handleTitleChange}
-            />
+            <TriangleGenerator carrier={activeSection?.carrier ?? 200} pulse={activeSection?.beat ?? 10} onCarrierChange={handleGeneratorCarrierChange} onPulseChange={handleGeneratorPulseChange} disabled={activeEditIndex === null} />
+            <AudioLayers noise={track.noise} ambience={track.ambience} ambientMusic={track.ambientMusic} onNoiseChange={handleNoiseChange} onAmbienceChange={handleAmbienceChange} onAmbientMusicChange={handleAmbientMusicChange} onPreviewNoise={handlePreviewNoise} onStopPreviewNoise={handleStopPreviewNoise} onPreviewAmbience={handlePreviewAmbience} onStopPreviewAmbience={handleStopPreviewAmbience} onPreviewAmbientMusic={handlePreviewAmbientMusic} onStopPreviewAmbientMusic={handleStopPreviewAmbientMusic} />
+            <ImportExport track={track} onImport={handleImport} onTitleChange={handleTitleChange} />
           </div>
 
           {/* Mobile: Audio Layers and Import/Export at bottom */}
           <div className="lg:hidden space-y-4">
-            <AudioLayers
-              noise={track.noise}
-              ambience={track.ambience}
-              ambientMusic={track.ambientMusic}
-              onNoiseChange={handleNoiseChange}
-              onAmbienceChange={handleAmbienceChange}
-              onAmbientMusicChange={handleAmbientMusicChange}
-              onPreviewNoise={handlePreviewNoise}
-              onStopPreviewNoise={handleStopPreviewNoise}
-              onPreviewAmbience={handlePreviewAmbience}
-              onStopPreviewAmbience={handleStopPreviewAmbience}
-              onPreviewAmbientMusic={handlePreviewAmbientMusic}
-              onStopPreviewAmbientMusic={handleStopPreviewAmbientMusic}
-            />
-            <ImportExport
-              track={track}
-              onImport={handleImport}
-              onTitleChange={handleTitleChange}
-            />
+            <AudioLayers noise={track.noise} ambience={track.ambience} ambientMusic={track.ambientMusic} onNoiseChange={handleNoiseChange} onAmbienceChange={handleAmbienceChange} onAmbientMusicChange={handleAmbientMusicChange} onPreviewNoise={handlePreviewNoise} onStopPreviewNoise={handleStopPreviewNoise} onPreviewAmbience={handlePreviewAmbience} onStopPreviewAmbience={handleStopPreviewAmbience} onPreviewAmbientMusic={handlePreviewAmbientMusic} onStopPreviewAmbientMusic={handleStopPreviewAmbientMusic} />
+            <ImportExport track={track} onImport={handleImport} onTitleChange={handleTitleChange} />
           </div>
         </div>
       </main>
 
       {/* Status Bar */}
-      <StatusBar
-        status={statusMessage}
-        playbackState={playbackState}
-        currentTime={currentTime}
-        isIsochronic={track.isIsochronic}
-      />
+      <StatusBar status={statusMessage} playbackState={playbackState} currentTime={currentTime} isIsochronic={track.isIsochronic} />
 
       {/* Save Preset Dialog */}
-      <SavePresetDialog
-        open={savePresetDialogOpen}
-        onOpenChange={setSavePresetDialogOpen}
-        defaultName={sectionToSave?.name || ''}
-        onSave={handleConfirmSavePreset}
-      />
-    </div>
-  );
+      <SavePresetDialog open={savePresetDialogOpen} onOpenChange={setSavePresetDialogOpen} defaultName={sectionToSave?.name || ''} onSave={handleConfirmSavePreset} />
+    </div>;
 }
