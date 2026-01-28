@@ -1,5 +1,5 @@
 import { useRef, useCallback, useMemo, useState, useEffect } from 'react';
-import { Section } from '@/types/binaural';
+import { Section, LoopMode } from '@/types/binaural';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ZoomIn, ZoomOut, Maximize2, Undo2, Redo2 } from 'lucide-react';
@@ -10,6 +10,7 @@ interface TimelineProps {
   currentSectionIndex: number | null;
   pixelsPerSecond: number;
   bpm: number;
+  loopMode?: LoopMode;
   onBpmChange: (bpm: number) => void;
   onSeek: (time: number) => void;
   onSectionClick: (index: number) => void;
@@ -28,6 +29,7 @@ export function Timeline({
   currentSectionIndex,
   pixelsPerSecond,
   bpm,
+  loopMode = 'off',
   onBpmChange,
   onSeek,
   onSectionClick,
@@ -107,7 +109,7 @@ export function Timeline({
   }, [sections, pixelsPerSecond]);
 
   return (
-    <div className="panel rounded-lg overflow-hidden">
+    <div className={`panel rounded-lg overflow-hidden transition-all duration-300 ${loopMode === 'loop' ? 'loop-glow' : ''}`}>
       {/* Zoom controls */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-void-surface gap-2">
         <span className="text-xs uppercase tracking-widest text-muted-foreground font-medium shrink-0">

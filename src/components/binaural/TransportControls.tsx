@@ -1,7 +1,9 @@
+import { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, Square, SkipBack, Repeat, Repeat1 } from 'lucide-react';
 import { PlaybackState, LoopMode } from '@/types/binaural';
 import { formatTime } from '@/lib/utils';
+import { toast } from 'sonner';
 import {
   Tooltip,
   TooltipContent,
@@ -30,6 +32,23 @@ export function TransportControls({
   onStop,
   onLoopModeChange,
 }: TransportControlsProps) {
+  const prevLoopModeRef = useRef(loopMode);
+
+  // Show toast when loop mode changes
+  useEffect(() => {
+    if (prevLoopModeRef.current !== loopMode) {
+      const messages: Record<LoopMode, string> = {
+        'off': '🔁 Loop disabled',
+        'repeat-once': '🔂 Repeat once enabled',
+        'loop': '🔁 Continuous loop enabled',
+      };
+      toast(messages[loopMode], {
+        duration: 2000,
+      });
+      prevLoopModeRef.current = loopMode;
+    }
+  }, [loopMode]);
+
   const cycleLoopMode = () => {
     const modes: LoopMode[] = ['off', 'repeat-once', 'loop'];
     const currentIndex = modes.indexOf(loopMode);
@@ -105,12 +124,12 @@ export function TransportControls({
                 variant="outline"
                 size="icon"
                 onClick={cycleLoopMode}
-                className={`h-8 w-8 sm:h-10 sm:w-10 border-border relative ${
+                className={`h-8 w-8 sm:h-10 sm:w-10 border-border relative transition-all ${
                   loopMode === 'off'
                     ? 'text-muted-foreground hover:text-foreground'
                     : loopMode === 'repeat-once'
                     ? 'border-accent text-accent hover:border-accent hover:text-accent bg-accent/10'
-                    : 'border-primary text-primary hover:border-primary hover:text-primary bg-primary/10'
+                    : 'border-[hsl(var(--loop-purple))] text-[hsl(var(--loop-purple))] hover:border-[hsl(var(--loop-purple))] hover:text-[hsl(var(--loop-purple))] bg-[hsl(var(--loop-purple)/0.15)] loop-glow'
                 }`}
               >
                 {loopMode === 'repeat-once' ? (
