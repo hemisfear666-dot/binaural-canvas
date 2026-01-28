@@ -76,12 +76,12 @@ export function SectionRow({
         onDragLeave={onDragLeave}
         onDrop={(e) => onDrop(e, index)}
         className={`
-          hidden md:block p-3 rounded-lg ${baseClasses}
+          hidden md:block p-3 rounded-lg overflow-hidden ${baseClasses}
         `}
         style={{ animationDelay: `${index * 50}ms` }}
       >
         {/* Main Row */}
-        <div className="grid grid-cols-[24px_40px_2fr_90px_90px_90px_120px_minmax(0,auto)] gap-4 items-center">
+        <div className="grid grid-cols-[24px_40px_minmax(0,2fr)_90px_90px_90px_100px_auto] gap-3 items-center">
           {/* Checkbox */}
           <div className="flex items-center justify-center">
             <Checkbox
