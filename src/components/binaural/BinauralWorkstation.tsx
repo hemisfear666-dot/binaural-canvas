@@ -650,7 +650,7 @@ export function BinauralWorkstation() {
           </div>
 
           {/* Desktop: Generator on side */}
-          <div className="hidden lg:block lg:col-span-1 space-y-4">
+          <div className="hidden lg:block lg:col-span-1 space-y-4 min-w-0 overflow-hidden">
             <TriangleGenerator carrier={activeSection?.carrier ?? 200} pulse={activeSection?.beat ?? 10} onCarrierChange={handleGeneratorCarrierChange} onPulseChange={handleGeneratorPulseChange} disabled={activeEditIndex === null} />
             <AudioLayers noise={track.noise} ambience={track.ambience} ambientMusic={track.ambientMusic} onNoiseChange={handleNoiseChange} onAmbienceChange={handleAmbienceChange} onAmbientMusicChange={handleAmbientMusicChange} onPreviewNoise={handlePreviewNoise} onStopPreviewNoise={handleStopPreviewNoise} onPreviewAmbience={handlePreviewAmbience} onStopPreviewAmbience={handleStopPreviewAmbience} onPreviewAmbientMusic={handlePreviewAmbientMusic} onStopPreviewAmbientMusic={handleStopPreviewAmbientMusic} />
             <ImportExport track={track} onImport={handleImport} onTitleChange={handleTitleChange} />
