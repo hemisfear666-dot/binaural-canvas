@@ -1,4 +1,4 @@
-import { useRef, useCallback, useMemo, useState, useEffect } from 'react';
+import { useRef, useCallback, useMemo, useState } from 'react';
 import { Section } from '@/types/binaural';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,14 +46,6 @@ export function Timeline({
   const containerRef = useRef<HTMLDivElement>(null);
   const bpmInputRef = useRef<HTMLInputElement>(null);
   const [bpmFocused, setBpmFocused] = useState(false);
-  const [localBpm, setLocalBpm] = useState(String(bpm));
-
-  // Sync local state when external bpm changes (and input not focused)
-  useEffect(() => {
-    if (!bpmFocused) {
-      setLocalBpm(String(bpm));
-    }
-  }, [bpm, bpmFocused]);
 
   const totalDuration = useMemo(() => {
     return sections.reduce((acc, s) => acc + s.duration, 0);
@@ -139,43 +131,19 @@ export function Timeline({
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">BPM</span>
             <Input
               ref={bpmInputRef}
-              type="text"
-              inputMode="numeric"
-              value={localBpm}
-              onChange={(e) => {
-                // Allow only digits (or empty for clearing)
-                const val = e.target.value.replace(/[^0-9]/g, '');
-                setLocalBpm(val);
-              }}
-              onFocus={() => {
-                setBpmFocused(true);
-                // Select all on focus for easy replacement
-                setTimeout(() => bpmInputRef.current?.select(), 0);
-              }}
-              onBlur={() => {
-                setBpmFocused(false);
-                // Commit value on blur, default to current bpm if empty/invalid
-                const parsed = parseInt(localBpm, 10);
-                if (!isNaN(parsed) && parsed >= 20 && parsed <= 300) {
-                  onBpmChange(parsed);
-                } else {
-                  setLocalBpm(String(bpm)); // revert to current
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  bpmInputRef.current?.blur();
-                }
-              }}
+              type="number"
+              value={bpm}
+              onChange={(e) => onBpmChange(parseInt(e.target.value) || 120)}
+              onFocus={() => setBpmFocused(true)}
+              onBlur={() => setBpmFocused(false)}
               onWheel={(e) => {
                 if (!bpmFocused) return;
                 e.preventDefault();
-                const current = parseInt(localBpm, 10) || bpm;
                 const delta = e.deltaY < 0 ? 1 : -1;
-                const newVal = Math.max(20, Math.min(300, current + delta));
-                setLocalBpm(String(newVal));
-                onBpmChange(newVal);
+                onBpmChange(Math.max(20, Math.min(300, bpm + delta)));
               }}
+              min={20}
+              max={300}
               className="h-6 w-[4.5rem] bg-void border-border text-center font-mono text-xs"
             />
             {onMetronomeChange && (
