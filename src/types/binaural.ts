@@ -13,6 +13,7 @@ export interface Section {
 
 
 export type WaveformType = 'sine' | 'triangle' | 'sawtooth';
+export type LoopMode = 'off' | 'repeat-once' | 'loop';
 export type NoiseType = 'white' | 'pink' | 'brown';
 export type AmbienceType = 'none' | 'rain' | 'forest' | 'drone' | 'windchimes' | 'gongs' | 'ocean' | 'fan';
 export type AmbientMusicType = 'soothing' | 'focus' | 'sleep';

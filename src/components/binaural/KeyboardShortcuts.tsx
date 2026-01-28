@@ -17,6 +17,7 @@ interface ShortcutItem {
 const shortcuts: ShortcutItem[] = [
   { keys: ['Space'], description: 'Play / Pause' },
   { keys: ['S'], description: 'Stop & Reset' },
+  { keys: ['L'], description: 'Cycle Loop Mode' },
   { keys: ['←'], description: 'Skip back 5 seconds' },
   { keys: ['→'], description: 'Skip forward 5 seconds' },
   { keys: ['Shift', '←'], description: 'Previous section' },
@@ -49,6 +50,7 @@ interface KeyboardShortcutsProps {
   onDeselectAll: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
+  onCycleLoopMode: () => void;
   isPlaying: boolean;
 }
 
@@ -69,6 +71,7 @@ export function KeyboardShortcuts({
   onDeselectAll,
   onZoomIn,
   onZoomOut,
+  onCycleLoopMode,
   isPlaying,
 }: KeyboardShortcutsProps) {
   const handleKeyDown = useCallback(
@@ -92,6 +95,12 @@ export function KeyboardShortcuts({
           if (!isMod) {
             e.preventDefault();
             onStop();
+          }
+          break;
+        case 'KeyL':
+          if (!isMod) {
+            e.preventDefault();
+            onCycleLoopMode();
           }
           break;
         case 'ArrowLeft':
@@ -177,6 +186,7 @@ export function KeyboardShortcuts({
       onDeselectAll,
       onZoomIn,
       onZoomOut,
+      onCycleLoopMode,
       onOpenChange,
     ]
   );

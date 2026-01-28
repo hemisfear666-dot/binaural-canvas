@@ -1,5 +1,5 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
-import { Section, PlaybackState, WaveformType } from '@/types/binaural';
+import { Section, PlaybackState, WaveformType, LoopMode } from '@/types/binaural';
 import { resumeAudioContext } from '@/lib/audio/resumeAudioContext';
 
 interface AudioEngineState {
@@ -23,7 +23,9 @@ export function useAudioEngine(
   isIsochronic: boolean,
   waveform: WaveformType,
   getAudioContext: GetAudioContext,
-  getOutputNode: () => AudioNode
+  getOutputNode: () => AudioNode,
+  loopMode: LoopMode = 'off',
+  onLoopModeChange?: (mode: LoopMode) => void
 ) {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const masterGainRef = useRef<GainNode | null>(null);
@@ -282,6 +284,15 @@ export function useAudioEngine(
     [sections]
   );
 
+  // Ref for loop mode to avoid stale closures
+  const loopModeRef = useRef(loopMode);
+  useEffect(() => {
+    loopModeRef.current = loopMode;
+  }, [loopMode]);
+
+  // Track if we've done the repeat-once replay
+  const hasRepeatedOnceRef = useRef(false);
+
   const updateTime = useCallback(() => {
     if (state.playbackState !== 'playing' || !audioCtxRef.current) return;
 
@@ -289,6 +300,42 @@ export function useAudioEngine(
     const totalDuration = getTotalDuration();
 
     if (elapsed >= totalDuration) {
+      const currentLoopMode = loopModeRef.current;
+
+      if (currentLoopMode === 'loop') {
+        // Continuous loop: restart from beginning
+        cleanupMainNodes();
+        startTimeRef.current = 0;
+        playbackStartRef.current = audioCtxRef.current.currentTime;
+        // Re-schedule all sections
+        scheduleAllSections(0);
+        setState((prev) => ({
+          ...prev,
+          currentTime: 0,
+          currentSectionIndex: getCurrentSection(0),
+        }));
+        animationFrameRef.current = requestAnimationFrame(updateTime);
+        return;
+      } else if (currentLoopMode === 'repeat-once' && !hasRepeatedOnceRef.current) {
+        // Repeat once: restart once, then stop
+        hasRepeatedOnceRef.current = true;
+        cleanupMainNodes();
+        startTimeRef.current = 0;
+        playbackStartRef.current = audioCtxRef.current.currentTime;
+        // Re-schedule all sections
+        scheduleAllSections(0);
+        setState((prev) => ({
+          ...prev,
+          currentTime: 0,
+          currentSectionIndex: getCurrentSection(0),
+        }));
+        // Switch mode to off after the repeat
+        onLoopModeChange?.('off');
+        animationFrameRef.current = requestAnimationFrame(updateTime);
+        return;
+      }
+
+      // Default: stop
       setState((prev) => ({
         ...prev,
         playbackState: 'stopped',
@@ -296,6 +343,7 @@ export function useAudioEngine(
         currentSectionIndex: null,
       }));
       cleanupMainNodes();
+      hasRepeatedOnceRef.current = false;
       return;
     }
 
@@ -306,7 +354,48 @@ export function useAudioEngine(
     }));
 
     animationFrameRef.current = requestAnimationFrame(updateTime);
-  }, [cleanupMainNodes, getCurrentSection, getTotalDuration, state.playbackState]);
+  }, [cleanupMainNodes, getCurrentSection, getTotalDuration, state.playbackState, onLoopModeChange]);
+
+  // Helper to schedule all sections from a given time
+  const scheduleAllSections = useCallback((fromTime: number) => {
+    if (!audioCtxRef.current) return;
+
+    let timeAccumulator = 0;
+    sections.forEach((section) => {
+      const rampEnabled = getRampEnabled(section);
+
+      if (timeAccumulator + section.duration > fromTime && !section.muted) {
+        const sectionStart = Math.max(0, fromTime - timeAccumulator);
+        const sectionDuration = section.duration - sectionStart;
+        const startOffset = Math.max(0, timeAccumulator - fromTime);
+
+        const progress = sectionStart / section.duration;
+
+        const currentCarrier = rampEnabled && section.endCarrier !== undefined
+          ? section.carrier + (section.endCarrier - section.carrier) * progress
+          : section.carrier;
+
+        const currentBeat = rampEnabled && section.endBeat !== undefined
+          ? section.beat + (section.endBeat - section.beat) * progress
+          : section.beat;
+
+        playTone({
+          sectionId: section.id,
+          carrier: currentCarrier,
+          endCarrier: section.endCarrier,
+          beat: currentBeat,
+          endBeat: section.endBeat,
+          rampEnabled,
+          duration: sectionDuration,
+          volume: section.volume,
+          muted: section.muted,
+          startOffset,
+          isTest: false,
+        });
+      }
+      timeAccumulator += section.duration;
+    });
+  }, [sections, getRampEnabled, playTone]);
 
   useEffect(() => {
     if (state.playbackState === 'playing') {
@@ -452,44 +541,15 @@ export function useAudioEngine(
 
       if (!audioCtxRef.current) return;
 
+      // Reset repeat-once flag when starting fresh
+      if (fromTime === 0) {
+        hasRepeatedOnceRef.current = false;
+      }
+
       startTimeRef.current = fromTime;
       playbackStartRef.current = audioCtxRef.current.currentTime;
 
-      let timeAccumulator = 0;
-      sections.forEach((section) => {
-        const rampEnabled = getRampEnabled(section);
-
-        if (timeAccumulator + section.duration > fromTime && !section.muted) {
-          const sectionStart = Math.max(0, fromTime - timeAccumulator);
-          const sectionDuration = section.duration - sectionStart;
-          const startOffset = Math.max(0, timeAccumulator - fromTime);
-
-          const progress = sectionStart / section.duration;
-
-          const currentCarrier = rampEnabled && section.endCarrier !== undefined
-            ? section.carrier + (section.endCarrier - section.carrier) * progress
-            : section.carrier;
-
-          const currentBeat = rampEnabled && section.endBeat !== undefined
-            ? section.beat + (section.endBeat - section.beat) * progress
-            : section.beat;
-
-          playTone({
-            sectionId: section.id,
-            carrier: currentCarrier,
-            endCarrier: section.endCarrier,
-            beat: currentBeat,
-            endBeat: section.endBeat,
-            rampEnabled,
-            duration: sectionDuration,
-            volume: section.volume,
-            muted: section.muted,
-            startOffset,
-            isTest: false,
-          });
-        }
-        timeAccumulator += section.duration;
-      });
+      scheduleAllSections(fromTime);
 
       setState((prev) => ({
         ...prev,
