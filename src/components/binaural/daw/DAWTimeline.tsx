@@ -38,6 +38,8 @@ interface DAWTimelineProps {
   onRedo?: () => void;
   onSectionsChange: (sections: Section[]) => void;
   onClipsChange?: (clips: TimelineClip[], tracks: TimelineTrack[]) => void;
+  onSelectedClipsChange?: (selectedClipIds: Set<string>) => void;
+  deleteSelectedClipsRef?: React.MutableRefObject<(() => void) | null>;
 }
 
 // Generate unique ID
@@ -90,6 +92,8 @@ export const DAWTimeline = memo(function DAWTimeline({
   onRedo,
   onSectionsChange,
   onClipsChange,
+  onSelectedClipsChange,
+  deleteSelectedClipsRef,
 }: DAWTimelineProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -131,6 +135,34 @@ export const DAWTimeline = memo(function DAWTimeline({
   useEffect(() => {
     onClipsChange?.(clips, tracks);
   }, [clips, tracks, onClipsChange]);
+
+  // Notify parent when selection changes
+  useEffect(() => {
+    onSelectedClipsChange?.(selectedClipIds);
+  }, [selectedClipIds, onSelectedClipsChange]);
+
+  // Delete selected clips function - exposed via ref
+  const deleteSelectedClips = useCallback(() => {
+    if (selectedClipIds.size === 0) {
+      toast.error('No clips selected');
+      return;
+    }
+    setClips(prev => prev.filter(c => !selectedClipIds.has(c.id)));
+    toast.success(`Deleted ${selectedClipIds.size} clip(s)`);
+    setSelectedClipIds(new Set());
+  }, [selectedClipIds]);
+
+  // Expose delete function via ref
+  useEffect(() => {
+    if (deleteSelectedClipsRef) {
+      deleteSelectedClipsRef.current = deleteSelectedClips;
+    }
+    return () => {
+      if (deleteSelectedClipsRef) {
+        deleteSelectedClipsRef.current = null;
+      }
+    };
+  }, [deleteSelectedClips, deleteSelectedClipsRef]);
 
   // Sync BPM input
   useEffect(() => {
