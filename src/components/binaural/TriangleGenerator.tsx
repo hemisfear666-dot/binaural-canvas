@@ -178,7 +178,7 @@ export function TriangleGenerator({
           </div>
 
           {/* Triangle Area */}
-          <div ref={containerRef} className="relative mx-auto select-none max-w-full" style={{
+          <div ref={containerRef} className="relative mx-auto select-none overflow-hidden" style={{
         width: UI.width,
         height: UI.height,
         maxWidth: '100%'
