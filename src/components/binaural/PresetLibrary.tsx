@@ -127,12 +127,13 @@ export function PresetLibrary({ onAddPreset, customPresets, onDeleteCustomPreset
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          className="border-accent/50 text-accent hover:bg-accent/10 hover:border-accent"
+          size="sm"
+          className="h-7 md:h-8 px-2 md:px-3 border-accent/50 text-accent hover:bg-accent/10 hover:border-accent"
         >
-          <Sparkles className="h-4 w-4 mr-2" />
-          Presets
+          <Sparkles className="h-3.5 w-3.5 md:mr-1.5" />
+          <span className="hidden md:inline text-xs">Presets</span>
           {customPresets.length > 0 && (
-            <span className="ml-1.5 text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">
+            <span className="ml-1 text-[9px] md:text-[10px] bg-primary/20 text-primary px-1 md:px-1.5 py-0.5 rounded-full">
               +{customPresets.length}
             </span>
           )}
