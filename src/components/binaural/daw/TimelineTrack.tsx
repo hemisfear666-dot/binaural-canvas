@@ -34,6 +34,12 @@ interface TimelineTrackProps {
   onClipDoubleClick: (clipId: string) => void;
   onTrackClick: (trackId: string, time: number) => void;
   snapToGrid: (time: number) => number;
+  // Drag-drop props
+  isDragOver?: boolean;
+  dropTime?: number;
+  onDragOver?: (e: React.DragEvent, trackId: string, trackElement: HTMLElement) => void;
+  onDragLeave?: () => void;
+  onDrop?: (e: React.DragEvent, trackId: string, trackElement: HTMLElement) => void;
 }
 
 export const TimelineTrackRow = memo(function TimelineTrackRow({
@@ -54,10 +60,16 @@ export const TimelineTrackRow = memo(function TimelineTrackRow({
   onClipDoubleClick,
   onTrackClick,
   snapToGrid,
+  isDragOver,
+  dropTime,
+  onDragOver,
+  onDragLeave,
+  onDrop,
 }: TimelineTrackProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(track.name);
   const inputRef = useRef<HTMLInputElement>(null);
+  const trackContentRef = useRef<HTMLDivElement>(null);
 
   const handleNameSubmit = useCallback(() => {
     if (editName.trim()) {
@@ -195,9 +207,23 @@ export const TimelineTrackRow = memo(function TimelineTrackRow({
 
       {/* Track content area - clips go here */}
       <div 
-        className="flex-1 h-14 relative overflow-hidden cursor-crosshair"
+        ref={trackContentRef}
+        className={`flex-1 h-14 relative overflow-hidden cursor-crosshair transition-colors ${
+          isDragOver ? 'bg-primary/10 ring-2 ring-primary ring-inset' : ''
+        }`}
         style={{ minWidth: totalWidth }}
         onClick={handleTrackAreaClick}
+        onDragOver={(e) => {
+          if (onDragOver && trackContentRef.current) {
+            onDragOver(e, track.id, trackContentRef.current);
+          }
+        }}
+        onDragLeave={onDragLeave}
+        onDrop={(e) => {
+          if (onDrop && trackContentRef.current) {
+            onDrop(e, track.id, trackContentRef.current);
+          }
+        }}
       >
         {/* Grid lines */}
         {gridLines.map((time) => (
@@ -207,6 +233,14 @@ export const TimelineTrackRow = memo(function TimelineTrackRow({
             style={{ left: time * pixelsPerSecond }}
           />
         ))}
+
+        {/* Drop indicator */}
+        {isDragOver && dropTime !== undefined && (
+          <div
+            className="absolute top-1 bottom-1 w-1 bg-primary rounded-full z-20 pointer-events-none"
+            style={{ left: dropTime * pixelsPerSecond }}
+          />
+        )}
 
         {/* Track muted overlay */}
         {track.muted && (

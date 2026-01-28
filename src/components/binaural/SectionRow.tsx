@@ -95,10 +95,15 @@ export function SectionRow({
           <div
             className="flex items-center gap-1 cursor-grab"
             draggable
-            onDragStart={(e) => onDragStart(e, index)}
+            onDragStart={(e) => {
+              // Set section data for timeline drop
+              e.dataTransfer.setData('application/section-id', section.id);
+              e.dataTransfer.setData('application/section-json', JSON.stringify(section));
+              onDragStart(e, index);
+            }}
             onDragEnd={onDragEnd}
-            title="Drag to reorder"
-            aria-label="Drag section to reorder"
+            title="Drag to reorder or drop on timeline"
+            aria-label="Drag section to reorder or add to timeline"
           >
             <GripVertical className="h-4 w-4 text-muted-foreground" />
             <span className="text-xs font-mono text-muted-foreground">{index + 1}</span>
@@ -346,7 +351,11 @@ export function SectionRow({
           <div
             className="flex items-center gap-1 cursor-grab shrink-0"
             draggable
-            onDragStart={(e) => onDragStart(e, index)}
+            onDragStart={(e) => {
+              e.dataTransfer.setData('application/section-id', section.id);
+              e.dataTransfer.setData('application/section-json', JSON.stringify(section));
+              onDragStart(e, index);
+            }}
             onDragEnd={onDragEnd}
           >
             <GripVertical className="h-4 w-4 text-muted-foreground" />
