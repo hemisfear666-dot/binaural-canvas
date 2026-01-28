@@ -202,10 +202,10 @@ export function KeyboardShortcuts({
         <Button
           variant="ghost"
           size="sm"
-          className="text-muted-foreground hover:text-accent border border-transparent hover:border-accent/50"
+          className="h-7 md:h-8 px-1.5 md:px-2 text-muted-foreground hover:text-accent border border-transparent hover:border-accent/50"
         >
-          <Keyboard className="h-4 w-4 mr-2" />
-          Shortcuts
+          <Keyboard className="h-3.5 w-3.5 md:mr-1.5" />
+          <span className="hidden md:inline text-xs">Shortcuts</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="bg-void-surface border-accent/30 max-w-md">

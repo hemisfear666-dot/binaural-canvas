@@ -610,7 +610,7 @@ export function BinauralWorkstation() {
             {/* Waveform Selector */}
             <WaveformSelector waveform={track.waveform} onWaveformChange={handleWaveformChange} />
           </div>
-          <div className="flex items-center gap-0.5 md:gap-1 flex-wrap">
+          <div className="flex items-center gap-0.5 md:gap-1 shrink-0">
 
             {/* Selection actions */}
             <Button variant="ghost" size="sm" onClick={selectedIndices.size === track.sections.length ? handleDeselectAll : handleSelectAll} className="h-7 md:h-8 px-1.5 md:px-2 text-muted-foreground hover:text-primary text-xs">
