@@ -1,5 +1,7 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { Section, PlaybackState, WaveformType, LoopMode } from '@/types/binaural';
+import { TimelineClip, TimelineTrack } from '@/types/daw';
+import { ScheduledEvent, generatePlaybackSchedule, getScheduleDuration, getActiveEventsAtTime } from '@/types/playback';
 import { resumeAudioContext } from '@/lib/audio/resumeAudioContext';
 
 interface AudioEngineState {
@@ -11,8 +13,8 @@ interface AudioEngineState {
 
 type GetAudioContext = () => AudioContext;
 
-type ScheduledSectionGain = {
-  sectionId: string;
+type ScheduledClipGain = {
+  clipId: string;
   gain: GainNode;
   startTime: number;
   endTime: number;
@@ -20,6 +22,8 @@ type ScheduledSectionGain = {
 
 export function useAudioEngine(
   sections: Section[],
+  clips: TimelineClip[],
+  tracks: TimelineTrack[],
   isIsochronic: boolean,
   waveform: WaveformType,
   getAudioContext: GetAudioContext,
@@ -32,7 +36,7 @@ export function useAudioEngine(
 
   const activeNodesRef = useRef<AudioNode[]>([]);
   const testNodesRef = useRef<AudioNode[]>([]);
-  const scheduledGainsRef = useRef<ScheduledSectionGain[]>([]);
+  const scheduledGainsRef = useRef<ScheduledClipGain[]>([]);
 
   const animationFrameRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
@@ -60,8 +64,6 @@ export function useAudioEngine(
     const ctx = getAudioContext();
     audioCtxRef.current = ctx;
 
-    // If the AudioContext ever gets recreated (HMR, browser quirks), the old GainNode
-    // belongs to a different context and will silently produce no audio.
     const needsNewMaster = !masterGainRef.current || masterGainRef.current.context !== ctx;
     if (needsNewMaster) {
       try {
@@ -76,13 +78,11 @@ export function useAudioEngine(
 
     const ok = await resumeAudioContext(ctx, 'engine');
     if (!ok) {
-      // No toast here (avoid UI side effects); log so we can diagnose if it happens again.
       console.warn('[engine] AudioContext not running; user gesture may be required');
     }
     return ok;
   }, [getAudioContext, getOutputNode]);
 
-  // Backwards-compatible init: kick off resume but don't await (some callers just want wiring).
   const initAudio = useCallback(() => {
     void ensureAudioRunning();
   }, [ensureAudioRunning]);
@@ -115,7 +115,7 @@ export function useAudioEngine(
   const createLowPassFilter = useCallback((ctx: AudioContext): BiquadFilterNode => {
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 300; // warm softening
+    filter.frequency.value = 300;
     filter.Q.value = 0.7;
     return filter;
   }, []);
@@ -125,7 +125,7 @@ export function useAudioEngine(
     return section.rampEnabled ?? hasTargets;
   }, []);
 
-  // Track active oscillators by section ID for live updates
+  // Track active oscillators by clip ID for live updates
   const activeOscillatorsRef = useRef<Map<string, {
     oscL?: OscillatorNode;
     oscR?: OscillatorNode;
@@ -146,15 +146,9 @@ export function useAudioEngine(
   const playTone = useCallback(
     (
       opts: {
-        sectionId: string;
-        carrier: number;
-        endCarrier: number | undefined;
-        beat: number;
-        endBeat: number | undefined;
-        rampEnabled: boolean;
+        clipId: string;
+        section: Section;
         duration: number;
-        volume: number;
-        muted: boolean;
         startOffset?: number;
         isTest?: boolean;
       }
@@ -162,33 +156,35 @@ export function useAudioEngine(
       if (!audioCtxRef.current || !masterGainRef.current) return;
 
       const ctx = audioCtxRef.current;
+      const { section, duration, clipId } = opts;
       const startOffset = opts.startOffset ?? 0;
       const now = ctx.currentTime + startOffset;
-      const endTime = now + opts.duration;
+      const endTime = now + duration;
 
+      const rampEnabled = getRampEnabled(section);
       const needsFilter = waveform !== 'sine';
 
       const sectionGain = ctx.createGain();
-      sectionGain.gain.setValueAtTime(opts.muted ? 0 : opts.volume, now);
+      sectionGain.gain.setValueAtTime(section.muted ? 0 : section.volume, now);
 
       const nodesToTrack = opts.isTest ? testNodesRef.current : activeNodesRef.current;
       if (!opts.isTest) {
         scheduledGainsRef.current.push({
-          sectionId: opts.sectionId,
+          clipId,
           gain: sectionGain,
           startTime: now,
           endTime,
         });
       }
 
-      const finalCarrier = opts.rampEnabled ? (opts.endCarrier ?? opts.carrier) : opts.carrier;
-      const finalBeat = opts.rampEnabled ? (opts.endBeat ?? opts.beat) : opts.beat;
+      const finalCarrier = rampEnabled ? (section.endCarrier ?? section.carrier) : section.carrier;
+      const finalBeat = rampEnabled ? (section.endBeat ?? section.beat) : section.beat;
 
       if (isIsochronic) {
         const osc = ctx.createOscillator();
         osc.type = waveform;
-        osc.frequency.setValueAtTime(opts.carrier, now);
-        if (opts.rampEnabled && opts.endCarrier !== undefined && opts.endCarrier !== opts.carrier) {
+        osc.frequency.setValueAtTime(section.carrier, now);
+        if (rampEnabled && section.endCarrier !== undefined && section.endCarrier !== section.carrier) {
           osc.frequency.linearRampToValueAtTime(finalCarrier, endTime);
         }
 
@@ -196,8 +192,8 @@ export function useAudioEngine(
         amp.gain.value = 0.5;
 
         const lfo = ctx.createOscillator();
-        lfo.frequency.setValueAtTime(opts.beat, now);
-        if (opts.rampEnabled && opts.endBeat !== undefined && opts.endBeat !== opts.beat) {
+        lfo.frequency.setValueAtTime(section.beat, now);
+        if (rampEnabled && section.endBeat !== undefined && section.endBeat !== section.beat) {
           lfo.frequency.linearRampToValueAtTime(finalBeat, endTime);
         }
 
@@ -226,9 +222,8 @@ export function useAudioEngine(
 
         nodesToTrack.push(osc, lfo, amp, lfoGain, sectionGain);
         
-        // Track oscillators for live updates
         if (!opts.isTest) {
-          activeOscillatorsRef.current.set(opts.sectionId, { osc, lfo, endTime });
+          activeOscillatorsRef.current.set(clipId, { osc, lfo, endTime });
         }
       } else {
         const oscL = ctx.createOscillator();
@@ -241,12 +236,12 @@ export function useAudioEngine(
         panL.pan.value = -1;
         panR.pan.value = 1;
 
-        const leftFreqStart = opts.carrier - opts.beat / 2;
-        const rightFreqStart = opts.carrier + opts.beat / 2;
+        const leftFreqStart = section.carrier - section.beat / 2;
+        const rightFreqStart = section.carrier + section.beat / 2;
         oscL.frequency.setValueAtTime(leftFreqStart, now);
         oscR.frequency.setValueAtTime(rightFreqStart, now);
 
-        if (opts.rampEnabled && ((opts.endCarrier !== undefined && opts.endCarrier !== opts.carrier) || (opts.endBeat !== undefined && opts.endBeat !== opts.beat))) {
+        if (rampEnabled && ((section.endCarrier !== undefined && section.endCarrier !== section.carrier) || (section.endBeat !== undefined && section.endBeat !== section.beat))) {
           const leftFreqEnd = finalCarrier - finalBeat / 2;
           const rightFreqEnd = finalCarrier + finalBeat / 2;
           oscL.frequency.linearRampToValueAtTime(leftFreqEnd, endTime);
@@ -277,29 +272,35 @@ export function useAudioEngine(
 
         nodesToTrack.push(oscL, oscR, panL, panR, sectionGain);
         
-        // Track oscillators for live updates
         if (!opts.isTest) {
-          activeOscillatorsRef.current.set(opts.sectionId, { oscL, oscR, endTime });
+          activeOscillatorsRef.current.set(clipId, { oscL, oscR, endTime });
         }
       }
     },
-    [createLowPassFilter, isIsochronic, waveform]
+    [createLowPassFilter, getRampEnabled, isIsochronic, waveform]
   );
 
+  // Generate playback schedule from clips
+  const getPlaybackSchedule = useCallback(() => {
+    return generatePlaybackSchedule(clips, tracks, sections);
+  }, [clips, tracks, sections]);
+
   const getTotalDuration = useCallback(() => {
-    return sections.reduce((acc, section) => acc + section.duration, 0);
-  }, [sections]);
+    const schedule = getPlaybackSchedule();
+    return getScheduleDuration(schedule);
+  }, [getPlaybackSchedule]);
 
   const getCurrentSection = useCallback(
     (time: number) => {
-      let elapsed = 0;
-      for (let i = 0; i < sections.length; i++) {
-        if (time >= elapsed && time < elapsed + sections[i].duration) return i;
-        elapsed += sections[i].duration;
-      }
-      return null;
+      const schedule = getPlaybackSchedule();
+      const activeEvents = getActiveEventsAtTime(schedule, time);
+      if (activeEvents.length === 0) return null;
+      
+      // Return the section index of the first active event
+      const sectionId = activeEvents[0].sectionId;
+      return sections.findIndex(s => s.id === sectionId);
     },
-    [sections]
+    [getPlaybackSchedule, sections]
   );
 
   // Ref for loop mode to avoid stale closures
@@ -311,52 +312,57 @@ export function useAudioEngine(
   // Track if we've done the repeat-once replay
   const hasRepeatedOnceRef = useRef(false);
 
-  // Helper to schedule all sections from a given time
-  const scheduleAllSections = useCallback((fromTime: number) => {
+  // Schedule all clips from a given time
+  const scheduleAllClips = useCallback((fromTime: number) => {
     if (!audioCtxRef.current) return;
 
-    let timeAccumulator = 0;
-    sections.forEach((section) => {
-      const rampEnabled = getRampEnabled(section);
+    const schedule = getPlaybackSchedule();
+    
+    for (const event of schedule) {
+      const clipEnd = event.startTime + event.duration;
+      
+      // Skip clips that have already finished
+      if (clipEnd <= fromTime) continue;
+      
+      // Calculate how much of this clip we need to play
+      const clipStartOffset = Math.max(0, fromTime - event.startTime);
+      const remainingDuration = event.duration - clipStartOffset;
+      const startOffset = Math.max(0, event.startTime - fromTime);
+      
+      // Calculate progress for ramping
+      const progress = clipStartOffset / event.duration;
+      const rampEnabled = getRampEnabled(event.section);
+      
+      // Create a modified section with current progress values
+      const currentCarrier = rampEnabled && event.section.endCarrier !== undefined
+        ? event.section.carrier + (event.section.endCarrier - event.section.carrier) * progress
+        : event.section.carrier;
 
-      if (timeAccumulator + section.duration > fromTime && !section.muted) {
-        const sectionStart = Math.max(0, fromTime - timeAccumulator);
-        const sectionDuration = section.duration - sectionStart;
-        const startOffset = Math.max(0, timeAccumulator - fromTime);
+      const currentBeat = rampEnabled && event.section.endBeat !== undefined
+        ? event.section.beat + (event.section.endBeat - event.section.beat) * progress
+        : event.section.beat;
 
-        const progress = sectionStart / section.duration;
+      const adjustedSection: Section = {
+        ...event.section,
+        carrier: currentCarrier,
+        beat: currentBeat,
+      };
 
-        const currentCarrier = rampEnabled && section.endCarrier !== undefined
-          ? section.carrier + (section.endCarrier - section.carrier) * progress
-          : section.carrier;
+      playTone({
+        clipId: event.clipId,
+        section: adjustedSection,
+        duration: remainingDuration,
+        startOffset,
+        isTest: false,
+      });
+    }
+  }, [getPlaybackSchedule, getRampEnabled, playTone]);
 
-        const currentBeat = rampEnabled && section.endBeat !== undefined
-          ? section.beat + (section.endBeat - section.beat) * progress
-          : section.beat;
-
-        playTone({
-          sectionId: section.id,
-          carrier: currentCarrier,
-          endCarrier: section.endCarrier,
-          beat: currentBeat,
-          endBeat: section.endBeat,
-          rampEnabled,
-          duration: sectionDuration,
-          volume: section.volume,
-          muted: section.muted,
-          startOffset,
-          isTest: false,
-        });
-      }
-      timeAccumulator += section.duration;
-    });
-  }, [sections, getRampEnabled, playTone]);
-
-  // Keep a ref to scheduleAllSections so updateTime always has the latest version
-  const scheduleAllSectionsRef = useRef(scheduleAllSections);
+  // Keep a ref to scheduleAllClips so updateTime always has the latest version
+  const scheduleAllClipsRef = useRef(scheduleAllClips);
   useEffect(() => {
-    scheduleAllSectionsRef.current = scheduleAllSections;
-  }, [scheduleAllSections]);
+    scheduleAllClipsRef.current = scheduleAllClips;
+  }, [scheduleAllClips]);
 
   const updateTime = useCallback(() => {
     if (state.playbackState !== 'playing' || !audioCtxRef.current) return;
@@ -368,12 +374,10 @@ export function useAudioEngine(
       const currentLoopMode = loopModeRef.current;
 
       if (currentLoopMode === 'loop') {
-        // Continuous loop: restart from beginning
         cleanupMainNodes();
         startTimeRef.current = 0;
         playbackStartRef.current = audioCtxRef.current.currentTime;
-        // Re-schedule all sections using ref
-        scheduleAllSectionsRef.current(0);
+        scheduleAllClipsRef.current(0);
         setState((prev) => ({
           ...prev,
           currentTime: 0,
@@ -382,19 +386,16 @@ export function useAudioEngine(
         animationFrameRef.current = requestAnimationFrame(updateTime);
         return;
       } else if (currentLoopMode === 'repeat-once' && !hasRepeatedOnceRef.current) {
-        // Repeat once: restart once, then stop
         hasRepeatedOnceRef.current = true;
         cleanupMainNodes();
         startTimeRef.current = 0;
         playbackStartRef.current = audioCtxRef.current.currentTime;
-        // Re-schedule all sections using ref
-        scheduleAllSectionsRef.current(0);
+        scheduleAllClipsRef.current(0);
         setState((prev) => ({
           ...prev,
           currentTime: 0,
           currentSectionIndex: getCurrentSection(0),
         }));
-        // Switch mode to off after the repeat
         onLoopModeChange?.('off');
         animationFrameRef.current = requestAnimationFrame(updateTime);
         return;
@@ -430,133 +431,27 @@ export function useAudioEngine(
     };
   }, [state.playbackState, updateTime]);
 
-  // Live per-section volume/mute updates while playing (no restarts)
+  // Live per-clip volume/mute updates while playing
   useEffect(() => {
     if (state.playbackState !== 'playing' || !audioCtxRef.current) return;
 
     const ctx = audioCtxRef.current;
-    const byId = new Map(sections.map((s) => [s.id, s] as const));
+    const sectionMap = new Map(sections.map((s) => [s.id, s] as const));
+    const clipMap = new Map(clips.map((c) => [c.id, c] as const));
 
     for (const scheduled of scheduledGainsRef.current) {
-      const s = byId.get(scheduled.sectionId);
-      if (!s) continue;
+      const clip = clipMap.get(scheduled.clipId);
+      if (!clip) continue;
+      const section = sectionMap.get(clip.sectionId);
+      if (!section) continue;
+      
       const t = ctx.currentTime;
       if (t < scheduled.startTime || t > scheduled.endTime) continue;
-      scheduled.gain.gain.setValueAtTime(s.muted ? 0 : s.volume, t);
+      
+      const isMuted = clip.muted || section.muted;
+      scheduled.gain.gain.setValueAtTime(isMuted ? 0 : section.volume, t);
     }
-  }, [sections, state.playbackState]);
-
-  // Live ramp parameter + frequency + waveform updates while playing
-  useEffect(() => {
-    if (state.playbackState !== 'playing' || !audioCtxRef.current) return;
-
-    const ctx = audioCtxRef.current;
-    const byId = new Map(sections.map((s) => [s.id, s] as const));
-    const now = ctx.currentTime;
-
-    for (const [sectionId, oscData] of activeOscillatorsRef.current.entries()) {
-      const section = byId.get(sectionId);
-      if (!section) continue;
-      if (now > oscData.endTime) continue;
-
-      const rampEnabled = getRampEnabled(section);
-      const remainingTime = oscData.endTime - now;
-
-      if (isIsochronic) {
-        // Isochronic mode: single osc + lfo
-        if (oscData.osc && oscData.lfo) {
-          // Live waveform change
-          if (oscData.osc.type !== waveform) {
-            oscData.osc.type = waveform;
-          }
-
-          const targetCarrier = rampEnabled && section.endCarrier !== undefined ? section.endCarrier : section.carrier;
-          const targetBeat = rampEnabled && section.endBeat !== undefined ? section.endBeat : section.beat;
-
-          // If ramp is enabled, set up the ramp from current value to target
-          // If ramp is disabled, immediately set to section's current carrier/beat
-          oscData.osc.frequency.cancelScheduledValues(now);
-          oscData.lfo.frequency.cancelScheduledValues(now);
-
-          if (rampEnabled && (section.endCarrier !== undefined || section.endBeat !== undefined)) {
-            oscData.osc.frequency.setValueAtTime(oscData.osc.frequency.value, now);
-            oscData.osc.frequency.linearRampToValueAtTime(targetCarrier, now + remainingTime);
-
-            oscData.lfo.frequency.setValueAtTime(oscData.lfo.frequency.value, now);
-            oscData.lfo.frequency.linearRampToValueAtTime(targetBeat, now + remainingTime);
-          } else {
-            // No ramp - jump to current section frequency immediately
-            oscData.osc.frequency.setValueAtTime(section.carrier, now);
-            oscData.lfo.frequency.setValueAtTime(section.beat, now);
-          }
-        }
-      } else {
-        // Binaural mode: left + right oscillators
-        if (oscData.oscL && oscData.oscR) {
-          // Live waveform change
-          if (oscData.oscL.type !== waveform) {
-            oscData.oscL.type = waveform;
-            oscData.oscR.type = waveform;
-          }
-
-          const targetCarrier = rampEnabled && section.endCarrier !== undefined ? section.endCarrier : section.carrier;
-          const targetBeat = rampEnabled && section.endBeat !== undefined ? section.endBeat : section.beat;
-
-          const targetLeftFreq = targetCarrier - targetBeat / 2;
-          const targetRightFreq = targetCarrier + targetBeat / 2;
-
-          oscData.oscL.frequency.cancelScheduledValues(now);
-          oscData.oscR.frequency.cancelScheduledValues(now);
-
-          if (rampEnabled && (section.endCarrier !== undefined || section.endBeat !== undefined)) {
-            oscData.oscL.frequency.setValueAtTime(oscData.oscL.frequency.value, now);
-            oscData.oscR.frequency.setValueAtTime(oscData.oscR.frequency.value, now);
-
-            oscData.oscL.frequency.linearRampToValueAtTime(targetLeftFreq, now + remainingTime);
-            oscData.oscR.frequency.linearRampToValueAtTime(targetRightFreq, now + remainingTime);
-          } else {
-            // No ramp - jump to current section frequency immediately
-            const leftFreq = section.carrier - section.beat / 2;
-            const rightFreq = section.carrier + section.beat / 2;
-            oscData.oscL.frequency.setValueAtTime(leftFreq, now);
-            oscData.oscR.frequency.setValueAtTime(rightFreq, now);
-          }
-        }
-      }
-    }
-  }, [sections, state.playbackState, isIsochronic, waveform, getRampEnabled]);
-
-  // Live update test oscillator when section frequencies change (frequency generator)
-  useEffect(() => {
-    if (state.testingIndex === null || !testOscillatorRef.current || !audioCtxRef.current) return;
-
-    const section = sections[state.testingIndex];
-    if (!section) return;
-
-    const ctx = audioCtxRef.current;
-    const now = ctx.currentTime;
-    const testData = testOscillatorRef.current;
-
-    // Update waveform
-    if (isIsochronic && testData.osc) {
-      if (testData.osc.type !== waveform) {
-        testData.osc.type = waveform;
-      }
-      testData.osc.frequency.setValueAtTime(section.carrier, now);
-      if (testData.lfo) {
-        testData.lfo.frequency.setValueAtTime(section.beat, now);
-      }
-    } else if (testData.oscL && testData.oscR) {
-      if (testData.oscL.type !== waveform) {
-        testData.oscL.type = waveform;
-        testData.oscR.type = waveform;
-      }
-      const leftFreq = section.carrier - section.beat / 2;
-      const rightFreq = section.carrier + section.beat / 2;
-      testData.oscL.frequency.setValueAtTime(leftFreq, now);
-      testData.oscR.frequency.setValueAtTime(rightFreq, now);
-    }
-  }, [sections, state.testingIndex, isIsochronic, waveform]);
+  }, [sections, clips, state.playbackState]);
 
   const play = useCallback(
     (fromTime: number = 0) => {
@@ -575,7 +470,7 @@ export function useAudioEngine(
         startTimeRef.current = fromTime;
         playbackStartRef.current = audioCtxRef.current.currentTime;
 
-        scheduleAllSections(fromTime);
+        scheduleAllClips(fromTime);
 
         setState((prev) => ({
           ...prev,
@@ -585,7 +480,7 @@ export function useAudioEngine(
         }));
       })();
     },
-    [cleanupMainNodes, ensureAudioRunning, getCurrentSection, scheduleAllSections]
+    [cleanupMainNodes, ensureAudioRunning, getCurrentSection, scheduleAllClips]
   );
 
   const stop = useCallback(() => {
@@ -626,57 +521,18 @@ export function useAudioEngine(
     if (prevIsIsochronicRef.current !== isIsochronic) {
       prevIsIsochronicRef.current = isIsochronic;
       
-      // If currently playing, restart from current time with new mode
       if (state.playbackState === 'playing' && audioCtxRef.current) {
         const currentPos = state.currentTime;
         cleanupMainNodes();
         
-        // Re-schedule all sections with new mode
         startTimeRef.current = currentPos;
         playbackStartRef.current = audioCtxRef.current.currentTime;
-
-        let timeAccumulator = 0;
-        sections.forEach((section) => {
-          const rampEnabled = getRampEnabled(section);
-
-          if (timeAccumulator + section.duration > currentPos && !section.muted) {
-            const sectionStart = Math.max(0, currentPos - timeAccumulator);
-            const sectionDuration = section.duration - sectionStart;
-            const startOffset = Math.max(0, timeAccumulator - currentPos);
-
-            const progress = sectionStart / section.duration;
-
-            const currentCarrier = rampEnabled && section.endCarrier !== undefined
-              ? section.carrier + (section.endCarrier - section.carrier) * progress
-              : section.carrier;
-
-            const currentBeat = rampEnabled && section.endBeat !== undefined
-              ? section.beat + (section.endBeat - section.beat) * progress
-              : section.beat;
-
-            playTone({
-              sectionId: section.id,
-              carrier: currentCarrier,
-              endCarrier: section.endCarrier,
-              beat: currentBeat,
-              endBeat: section.endBeat,
-              rampEnabled,
-              duration: sectionDuration,
-              volume: section.volume,
-              muted: section.muted,
-              startOffset,
-              isTest: false,
-            });
-          }
-          timeAccumulator += section.duration;
-        });
+        scheduleAllClips(currentPos);
       }
       
-      // If testing, restart test with new mode
       if (state.testingIndex !== null) {
         const testIdx = state.testingIndex;
         cleanupTestNodes();
-        // Small delay to let cleanup finish
         setTimeout(() => {
           if (testIdx !== null) {
             restartTestWithNewMode(testIdx);
@@ -684,7 +540,7 @@ export function useAudioEngine(
         }, 10);
       }
     }
-  }, [isIsochronic, state.playbackState, state.currentTime, state.testingIndex, sections, cleanupMainNodes, getRampEnabled, playTone]);
+  }, [isIsochronic, state.playbackState, state.currentTime, state.testingIndex, cleanupMainNodes, scheduleAllClips, cleanupTestNodes]);
 
   // Helper to restart test with current mode
   const restartTestWithNewMode = useCallback(
@@ -708,83 +564,83 @@ export function useAudioEngine(
         const sectionGain = ctx.createGain();
         sectionGain.gain.setValueAtTime(section.muted ? 0 : section.volume, now);
 
-      if (isIsochronicRef.current) {
-        const osc = ctx.createOscillator();
-        osc.type = waveformRef.current;
-        osc.frequency.setValueAtTime(section.carrier, now);
+        if (isIsochronicRef.current) {
+          const osc = ctx.createOscillator();
+          osc.type = waveformRef.current;
+          osc.frequency.setValueAtTime(section.carrier, now);
 
-        const amp = ctx.createGain();
-        amp.gain.value = 0.5;
+          const amp = ctx.createGain();
+          amp.gain.value = 0.5;
 
-        const lfo = ctx.createOscillator();
-        lfo.frequency.setValueAtTime(section.beat, now);
+          const lfo = ctx.createOscillator();
+          lfo.frequency.setValueAtTime(section.beat, now);
 
-        const lfoGain = ctx.createGain();
-        lfoGain.gain.value = 0.5;
+          const lfoGain = ctx.createGain();
+          lfoGain.gain.value = 0.5;
 
-        lfo.connect(lfoGain);
-        lfoGain.connect(amp.gain);
+          lfo.connect(lfoGain);
+          lfoGain.connect(amp.gain);
 
-        if (needsFilter) {
-          const filter = createLowPassFilter(ctx);
-          osc.connect(filter);
-          filter.connect(amp);
-          testNodesRef.current.push(filter);
+          if (needsFilter) {
+            const filter = createLowPassFilter(ctx);
+            osc.connect(filter);
+            filter.connect(amp);
+            testNodesRef.current.push(filter);
+          } else {
+            osc.connect(amp);
+          }
+
+          amp.connect(sectionGain);
+          sectionGain.connect(masterGainRef.current);
+
+          osc.start(now);
+          lfo.start(now);
+          osc.stop(endTime);
+          lfo.stop(endTime);
+
+          testNodesRef.current.push(osc, lfo, amp, lfoGain, sectionGain);
+          testOscillatorRef.current = { osc, lfo, sectionIndex };
         } else {
-          osc.connect(amp);
+          const oscL = ctx.createOscillator();
+          const oscR = ctx.createOscillator();
+          oscL.type = waveformRef.current;
+          oscR.type = waveformRef.current;
+
+          const panL = ctx.createStereoPanner();
+          const panR = ctx.createStereoPanner();
+          panL.pan.value = -1;
+          panR.pan.value = 1;
+
+          const leftFreq = section.carrier - section.beat / 2;
+          const rightFreq = section.carrier + section.beat / 2;
+          oscL.frequency.setValueAtTime(leftFreq, now);
+          oscR.frequency.setValueAtTime(rightFreq, now);
+
+          if (needsFilter) {
+            const filterL = createLowPassFilter(ctx);
+            const filterR = createLowPassFilter(ctx);
+            oscL.connect(filterL);
+            oscR.connect(filterR);
+            filterL.connect(panL);
+            filterR.connect(panR);
+            testNodesRef.current.push(filterL, filterR);
+          } else {
+            oscL.connect(panL);
+            oscR.connect(panR);
+          }
+
+          panL.connect(sectionGain);
+          panR.connect(sectionGain);
+          sectionGain.connect(masterGainRef.current);
+
+          oscL.start(now);
+          oscR.start(now);
+          oscL.stop(endTime);
+          oscR.stop(endTime);
+
+          testNodesRef.current.push(oscL, oscR, panL, panR, sectionGain);
+          testOscillatorRef.current = { oscL, oscR, sectionIndex };
         }
-
-        amp.connect(sectionGain);
-        sectionGain.connect(masterGainRef.current);
-
-        osc.start(now);
-        lfo.start(now);
-        osc.stop(endTime);
-        lfo.stop(endTime);
-
-        testNodesRef.current.push(osc, lfo, amp, lfoGain, sectionGain);
-        testOscillatorRef.current = { osc, lfo, sectionIndex };
-      } else {
-        const oscL = ctx.createOscillator();
-        const oscR = ctx.createOscillator();
-        oscL.type = waveformRef.current;
-        oscR.type = waveformRef.current;
-
-        const panL = ctx.createStereoPanner();
-        const panR = ctx.createStereoPanner();
-        panL.pan.value = -1;
-        panR.pan.value = 1;
-
-        const leftFreq = section.carrier - section.beat / 2;
-        const rightFreq = section.carrier + section.beat / 2;
-        oscL.frequency.setValueAtTime(leftFreq, now);
-        oscR.frequency.setValueAtTime(rightFreq, now);
-
-        if (needsFilter) {
-          const filterL = createLowPassFilter(ctx);
-          const filterR = createLowPassFilter(ctx);
-          oscL.connect(filterL);
-          oscR.connect(filterR);
-          filterL.connect(panL);
-          filterR.connect(panR);
-          testNodesRef.current.push(filterL, filterR);
-        } else {
-          oscL.connect(panL);
-          oscR.connect(panR);
-        }
-
-        panL.connect(sectionGain);
-        panR.connect(sectionGain);
-        sectionGain.connect(masterGainRef.current);
-
-        oscL.start(now);
-        oscR.start(now);
-        oscL.stop(endTime);
-        oscR.stop(endTime);
-
-        testNodesRef.current.push(oscL, oscR, panL, panR, sectionGain);
-        testOscillatorRef.current = { oscL, oscR, sectionIndex };
-      }
 
         setState((prev) => ({ ...prev, testingIndex: sectionIndex }));
       })();
@@ -798,7 +654,6 @@ export function useAudioEngine(
         const ok = await ensureAudioRunning();
         if (!ok) return;
 
-        // If playing, pause and remember the position
         if (state.playbackState === 'playing') {
           wasPlayingBeforeTestRef.current = true;
           pausedTimeRef.current = state.currentTime;
@@ -813,7 +668,6 @@ export function useAudioEngine(
 
         const ctx = audioCtxRef.current;
         const now = ctx.currentTime;
-        // Use very long duration (24 hours) - user must manually stop
         const duration = 86400;
         const endTime = now + duration;
 
@@ -822,83 +676,83 @@ export function useAudioEngine(
         const sectionGain = ctx.createGain();
         sectionGain.gain.setValueAtTime(section.muted ? 0 : section.volume, now);
 
-      if (isIsochronic) {
-        const osc = ctx.createOscillator();
-        osc.type = waveform;
-        osc.frequency.setValueAtTime(section.carrier, now);
+        if (isIsochronic) {
+          const osc = ctx.createOscillator();
+          osc.type = waveform;
+          osc.frequency.setValueAtTime(section.carrier, now);
 
-        const amp = ctx.createGain();
-        amp.gain.value = 0.5;
+          const amp = ctx.createGain();
+          amp.gain.value = 0.5;
 
-        const lfo = ctx.createOscillator();
-        lfo.frequency.setValueAtTime(section.beat, now);
+          const lfo = ctx.createOscillator();
+          lfo.frequency.setValueAtTime(section.beat, now);
 
-        const lfoGain = ctx.createGain();
-        lfoGain.gain.value = 0.5;
+          const lfoGain = ctx.createGain();
+          lfoGain.gain.value = 0.5;
 
-        lfo.connect(lfoGain);
-        lfoGain.connect(amp.gain);
+          lfo.connect(lfoGain);
+          lfoGain.connect(amp.gain);
 
-        if (needsFilter) {
-          const filter = createLowPassFilter(ctx);
-          osc.connect(filter);
-          filter.connect(amp);
-          testNodesRef.current.push(filter);
+          if (needsFilter) {
+            const filter = createLowPassFilter(ctx);
+            osc.connect(filter);
+            filter.connect(amp);
+            testNodesRef.current.push(filter);
+          } else {
+            osc.connect(amp);
+          }
+
+          amp.connect(sectionGain);
+          sectionGain.connect(masterGainRef.current);
+
+          osc.start(now);
+          lfo.start(now);
+          osc.stop(endTime);
+          lfo.stop(endTime);
+
+          testNodesRef.current.push(osc, lfo, amp, lfoGain, sectionGain);
+          testOscillatorRef.current = { osc, lfo, sectionIndex };
         } else {
-          osc.connect(amp);
+          const oscL = ctx.createOscillator();
+          const oscR = ctx.createOscillator();
+          oscL.type = waveform;
+          oscR.type = waveform;
+
+          const panL = ctx.createStereoPanner();
+          const panR = ctx.createStereoPanner();
+          panL.pan.value = -1;
+          panR.pan.value = 1;
+
+          const leftFreq = section.carrier - section.beat / 2;
+          const rightFreq = section.carrier + section.beat / 2;
+          oscL.frequency.setValueAtTime(leftFreq, now);
+          oscR.frequency.setValueAtTime(rightFreq, now);
+
+          if (needsFilter) {
+            const filterL = createLowPassFilter(ctx);
+            const filterR = createLowPassFilter(ctx);
+            oscL.connect(filterL);
+            oscR.connect(filterR);
+            filterL.connect(panL);
+            filterR.connect(panR);
+            testNodesRef.current.push(filterL, filterR);
+          } else {
+            oscL.connect(panL);
+            oscR.connect(panR);
+          }
+
+          panL.connect(sectionGain);
+          panR.connect(sectionGain);
+          sectionGain.connect(masterGainRef.current);
+
+          oscL.start(now);
+          oscR.start(now);
+          oscL.stop(endTime);
+          oscR.stop(endTime);
+
+          testNodesRef.current.push(oscL, oscR, panL, panR, sectionGain);
+          testOscillatorRef.current = { oscL, oscR, sectionIndex };
         }
-
-        amp.connect(sectionGain);
-        sectionGain.connect(masterGainRef.current);
-
-        osc.start(now);
-        lfo.start(now);
-        osc.stop(endTime);
-        lfo.stop(endTime);
-
-        testNodesRef.current.push(osc, lfo, amp, lfoGain, sectionGain);
-        testOscillatorRef.current = { osc, lfo, sectionIndex };
-      } else {
-        const oscL = ctx.createOscillator();
-        const oscR = ctx.createOscillator();
-        oscL.type = waveform;
-        oscR.type = waveform;
-
-        const panL = ctx.createStereoPanner();
-        const panR = ctx.createStereoPanner();
-        panL.pan.value = -1;
-        panR.pan.value = 1;
-
-        const leftFreq = section.carrier - section.beat / 2;
-        const rightFreq = section.carrier + section.beat / 2;
-        oscL.frequency.setValueAtTime(leftFreq, now);
-        oscR.frequency.setValueAtTime(rightFreq, now);
-
-        if (needsFilter) {
-          const filterL = createLowPassFilter(ctx);
-          const filterR = createLowPassFilter(ctx);
-          oscL.connect(filterL);
-          oscR.connect(filterR);
-          filterL.connect(panL);
-          filterR.connect(panR);
-          testNodesRef.current.push(filterL, filterR);
-        } else {
-          oscL.connect(panL);
-          oscR.connect(panR);
-        }
-
-        panL.connect(sectionGain);
-        panR.connect(sectionGain);
-        sectionGain.connect(masterGainRef.current);
-
-        oscL.start(now);
-        oscR.start(now);
-        oscL.stop(endTime);
-        oscR.stop(endTime);
-
-        testNodesRef.current.push(oscL, oscR, panL, panR, sectionGain);
-        testOscillatorRef.current = { oscL, oscR, sectionIndex };
-      }
 
         setState((prev) => ({ ...prev, testingIndex: sectionIndex, playbackState: 'stopped' }));
       })();
@@ -927,13 +781,43 @@ export function useAudioEngine(
     [getCurrentSection, play, state.playbackState]
   );
 
+  // Live update test oscillator when section frequencies change
+  useEffect(() => {
+    if (state.testingIndex === null || !testOscillatorRef.current || !audioCtxRef.current) return;
+
+    const section = sections[state.testingIndex];
+    if (!section) return;
+
+    const ctx = audioCtxRef.current;
+    const now = ctx.currentTime;
+    const testData = testOscillatorRef.current;
+
+    if (isIsochronic && testData.osc) {
+      if (testData.osc.type !== waveform) {
+        testData.osc.type = waveform;
+      }
+      testData.osc.frequency.setValueAtTime(section.carrier, now);
+      if (testData.lfo) {
+        testData.lfo.frequency.setValueAtTime(section.beat, now);
+      }
+    } else if (testData.oscL && testData.oscR) {
+      if (testData.oscL.type !== waveform) {
+        testData.oscL.type = waveform;
+        testData.oscR.type = waveform;
+      }
+      const leftFreq = section.carrier - section.beat / 2;
+      const rightFreq = section.carrier + section.beat / 2;
+      testData.oscL.frequency.setValueAtTime(leftFreq, now);
+      testData.oscR.frequency.setValueAtTime(rightFreq, now);
+    }
+  }, [sections, state.testingIndex, isIsochronic, waveform]);
+
   useEffect(() => {
     return () => {
       cleanupMainNodes();
       cleanupTestNodes();
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
 
-      // Note: we do NOT close the AudioContext here because it's shared by the mixer.
       try {
         masterGainRef.current?.disconnect();
       } catch {

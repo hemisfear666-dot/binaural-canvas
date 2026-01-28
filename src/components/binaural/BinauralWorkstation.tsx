@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Section, Track, WaveformType, NoiseSettings, AmbienceSettings, AmbientMusicSettings, EffectsSettings, NoiseType, AmbienceType, AmbientMusicType, LoopMode } from '@/types/binaural';
+import { TimelineClip, TimelineTrack } from '@/types/daw';
 import { useAudioMixer } from '@/hooks/useAudioMixer';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { useNoiseGenerator } from '@/hooks/useNoiseGenerator';
@@ -238,6 +239,10 @@ export function BinauralWorkstation() {
   const [pixelsPerSecond, setPixelsPerSecond] = useState(8);
   const [loopMode, setLoopMode] = useState<LoopMode>('off');
   
+  // Timeline clips and tracks state (lifted from DAWTimeline for audio engine)
+  const [timelineClips, setTimelineClips] = useState<TimelineClip[]>([]);
+  const [timelineTracks, setTimelineTracks] = useState<TimelineTrack[]>([]);
+  
   const [savePresetDialogOpen, setSavePresetDialogOpen] = useState(false);
   const [sectionToSave, setSectionToSave] = useState<Section | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -260,6 +265,12 @@ export function BinauralWorkstation() {
       console.warn('Failed to save track:', e);
     }
   }, [track]);
+  
+  // Handle clips change from DAWTimeline
+  const handleClipsChange = useCallback((clips: TimelineClip[], tracks: TimelineTrack[]) => {
+    setTimelineClips(clips);
+    setTimelineTracks(tracks);
+  }, []);
   const {
     playbackState,
     currentTime,
@@ -272,7 +283,17 @@ export function BinauralWorkstation() {
     stopTest,
     seekTo,
     getTotalDuration
-  } = useAudioEngine(track.sections, track.isIsochronic, track.waveform, mixer.ensure, mixer.getToneInput, loopMode, setLoopMode);
+  } = useAudioEngine(
+    track.sections, 
+    timelineClips, 
+    timelineTracks, 
+    track.isIsochronic, 
+    track.waveform, 
+    mixer.ensure, 
+    mixer.getToneInput, 
+    loopMode, 
+    setLoopMode
+  );
 
   // Wrap stop to also kill reverb tail immediately
   const stop = useCallback(() => {
@@ -655,6 +676,7 @@ export function BinauralWorkstation() {
           onUndo={undo} 
           onRedo={redo}
           onSectionsChange={handleSectionsChange}
+          onClipsChange={handleClipsChange}
         />
 
         {/* Section Editor */}
