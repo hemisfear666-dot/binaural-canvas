@@ -56,18 +56,36 @@ export function useAudioEngine(
     testingIndex: null,
   });
 
-  const initAudio = useCallback(() => {
+  const ensureAudioRunning = useCallback(async () => {
     const ctx = getAudioContext();
     audioCtxRef.current = ctx;
 
-    void resumeAudioContext(ctx, 'engine');
-
-    if (!masterGainRef.current) {
+    // If the AudioContext ever gets recreated (HMR, browser quirks), the old GainNode
+    // belongs to a different context and will silently produce no audio.
+    const needsNewMaster = !masterGainRef.current || masterGainRef.current.context !== ctx;
+    if (needsNewMaster) {
+      try {
+        masterGainRef.current?.disconnect();
+      } catch {
+        // ignore
+      }
       masterGainRef.current = ctx.createGain();
       masterGainRef.current.gain.value = 1;
       masterGainRef.current.connect(getOutputNode());
     }
+
+    const ok = await resumeAudioContext(ctx, 'engine');
+    if (!ok) {
+      // No toast here (avoid UI side effects); log so we can diagnose if it happens again.
+      console.warn('[engine] AudioContext not running; user gesture may be required');
+    }
+    return ok;
   }, [getAudioContext, getOutputNode]);
+
+  // Backwards-compatible init: kick off resume but don't await (some callers just want wiring).
+  const initAudio = useCallback(() => {
+    void ensureAudioRunning();
+  }, [ensureAudioRunning]);
 
   const cleanupNodes = useCallback((nodes: AudioNode[]) => {
     nodes.forEach((node) => {
@@ -542,29 +560,32 @@ export function useAudioEngine(
 
   const play = useCallback(
     (fromTime: number = 0) => {
-      initAudio();
-      cleanupMainNodes();
+      void (async () => {
+        const ok = await ensureAudioRunning();
+        if (!ok) return;
 
-      if (!audioCtxRef.current) return;
+        cleanupMainNodes();
+        if (!audioCtxRef.current) return;
 
-      // Reset repeat-once flag when starting fresh
-      if (fromTime === 0) {
-        hasRepeatedOnceRef.current = false;
-      }
+        // Reset repeat-once flag when starting fresh
+        if (fromTime === 0) {
+          hasRepeatedOnceRef.current = false;
+        }
 
-      startTimeRef.current = fromTime;
-      playbackStartRef.current = audioCtxRef.current.currentTime;
+        startTimeRef.current = fromTime;
+        playbackStartRef.current = audioCtxRef.current.currentTime;
 
-      scheduleAllSections(fromTime);
+        scheduleAllSections(fromTime);
 
-      setState((prev) => ({
-        ...prev,
-        playbackState: 'playing',
-        currentTime: fromTime,
-        currentSectionIndex: getCurrentSection(fromTime),
-      }));
+        setState((prev) => ({
+          ...prev,
+          playbackState: 'playing',
+          currentTime: fromTime,
+          currentSectionIndex: getCurrentSection(fromTime),
+        }));
+      })();
     },
-    [cleanupMainNodes, getCurrentSection, getRampEnabled, initAudio, playTone, sections]
+    [cleanupMainNodes, ensureAudioRunning, getCurrentSection, scheduleAllSections]
   );
 
   const stop = useCallback(() => {
@@ -668,21 +689,24 @@ export function useAudioEngine(
   // Helper to restart test with current mode
   const restartTestWithNewMode = useCallback(
     (sectionIndex: number) => {
-      initAudio();
-      cleanupTestNodes();
+      void (async () => {
+        const ok = await ensureAudioRunning();
+        if (!ok) return;
 
-      const section = sections[sectionIndex];
-      if (!section || !audioCtxRef.current || !masterGainRef.current) return;
+        cleanupTestNodes();
 
-      const ctx = audioCtxRef.current;
-      const now = ctx.currentTime;
-      const duration = 86400;
-      const endTime = now + duration;
+        const section = sections[sectionIndex];
+        if (!section || !audioCtxRef.current || !masterGainRef.current) return;
 
-      const needsFilter = waveformRef.current !== 'sine';
+        const ctx = audioCtxRef.current;
+        const now = ctx.currentTime;
+        const duration = 86400;
+        const endTime = now + duration;
 
-      const sectionGain = ctx.createGain();
-      sectionGain.gain.setValueAtTime(section.muted ? 0 : section.volume, now);
+        const needsFilter = waveformRef.current !== 'sine';
+
+        const sectionGain = ctx.createGain();
+        sectionGain.gain.setValueAtTime(section.muted ? 0 : section.volume, now);
 
       if (isIsochronicRef.current) {
         const osc = ctx.createOscillator();
@@ -762,38 +786,41 @@ export function useAudioEngine(
         testOscillatorRef.current = { oscL, oscR, sectionIndex };
       }
 
-      setState((prev) => ({ ...prev, testingIndex: sectionIndex }));
+        setState((prev) => ({ ...prev, testingIndex: sectionIndex }));
+      })();
     },
-    [cleanupTestNodes, createLowPassFilter, initAudio, sections]
+    [cleanupTestNodes, createLowPassFilter, ensureAudioRunning, sections]
   );
 
   const testSection = useCallback(
     (sectionIndex: number) => {
-      initAudio();
+      void (async () => {
+        const ok = await ensureAudioRunning();
+        if (!ok) return;
 
-      // If playing, pause and remember the position
-      if (state.playbackState === 'playing') {
-        wasPlayingBeforeTestRef.current = true;
-        pausedTimeRef.current = state.currentTime;
-        cleanupMainNodes();
-        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-      }
+        // If playing, pause and remember the position
+        if (state.playbackState === 'playing') {
+          wasPlayingBeforeTestRef.current = true;
+          pausedTimeRef.current = state.currentTime;
+          cleanupMainNodes();
+          if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+        }
 
-      cleanupTestNodes();
+        cleanupTestNodes();
 
-      const section = sections[sectionIndex];
-      if (!section || !audioCtxRef.current || !masterGainRef.current) return;
+        const section = sections[sectionIndex];
+        if (!section || !audioCtxRef.current || !masterGainRef.current) return;
 
-      const ctx = audioCtxRef.current;
-      const now = ctx.currentTime;
-      // Use very long duration (24 hours) - user must manually stop
-      const duration = 86400;
-      const endTime = now + duration;
+        const ctx = audioCtxRef.current;
+        const now = ctx.currentTime;
+        // Use very long duration (24 hours) - user must manually stop
+        const duration = 86400;
+        const endTime = now + duration;
 
-      const needsFilter = waveform !== 'sine';
+        const needsFilter = waveform !== 'sine';
 
-      const sectionGain = ctx.createGain();
-      sectionGain.gain.setValueAtTime(section.muted ? 0 : section.volume, now);
+        const sectionGain = ctx.createGain();
+        sectionGain.gain.setValueAtTime(section.muted ? 0 : section.volume, now);
 
       if (isIsochronic) {
         const osc = ctx.createOscillator();
@@ -873,9 +900,10 @@ export function useAudioEngine(
         testOscillatorRef.current = { oscL, oscR, sectionIndex };
       }
 
-      setState((prev) => ({ ...prev, testingIndex: sectionIndex, playbackState: 'stopped' }));
+        setState((prev) => ({ ...prev, testingIndex: sectionIndex, playbackState: 'stopped' }));
+      })();
     },
-    [cleanupMainNodes, cleanupTestNodes, createLowPassFilter, initAudio, isIsochronic, sections, state.currentTime, state.playbackState, waveform]
+    [cleanupMainNodes, cleanupTestNodes, createLowPassFilter, ensureAudioRunning, isIsochronic, sections, state.currentTime, state.playbackState, waveform]
   );
 
   const stopTest = useCallback(() => {
