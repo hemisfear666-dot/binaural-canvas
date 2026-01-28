@@ -157,7 +157,7 @@ export function TriangleGenerator({
   if (currentPos.y === 0) relativeX = 0;
   const intensity = Math.abs(relativeX);
   const color = relativeX < 0 ? 'hsl(var(--primary))' : 'hsl(var(--accent))';
-  return <div className="panel rounded-lg p-4 mb-4">
+  return <div className="panel rounded-lg p-4 mb-4 overflow-hidden">
       <h3 className="text-xs uppercase tracking-widest font-medium mb-3 text-slate-400">
         Frequency Generator
       </h3>
