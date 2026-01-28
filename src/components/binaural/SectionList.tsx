@@ -73,7 +73,9 @@ export function SectionList({
   // Drag and drop handlers
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDragIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
+    // Allow both reordering within the list (move) and dropping onto the DAW timeline (copy)
+    // Otherwise, the browser will show a forbidden cursor when the drop target sets dropEffect='copy'.
+    e.dataTransfer.effectAllowed = 'copyMove';
     e.dataTransfer.setData('text/plain', index.toString());
   };
 
