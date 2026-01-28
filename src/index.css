@@ -60,7 +60,12 @@
     /* Shadows */
     --shadow-glow-blue: 0 0 30px hsl(var(--primary) / 0.3);
     --shadow-glow-red: 0 0 20px hsl(var(--accent) / 0.4);
+    --shadow-glow-purple: 0 0 25px hsl(270 80% 60% / 0.5);
     --shadow-panel: 0 20px 50px hsl(0 0% 0% / 0.5);
+
+    /* Loop mode purple */
+    --loop-purple: 270 80% 60%;
+    --loop-purple-glow: 270 90% 70%;
 
     /* Sidebar (keeping defaults) */
     --sidebar-background: var(--void-lighter);
@@ -119,6 +124,25 @@
   
   .glow-red {
     box-shadow: var(--shadow-glow-red);
+  }
+
+  .glow-purple {
+    box-shadow: var(--shadow-glow-purple);
+  }
+
+  /* Loop mode glow animation */
+  @keyframes loop-pulse {
+    0%, 100% {
+      box-shadow: 0 0 15px hsl(var(--loop-purple) / 0.4);
+    }
+    50% {
+      box-shadow: 0 0 30px hsl(var(--loop-purple) / 0.6);
+    }
+  }
+
+  .loop-glow {
+    animation: loop-pulse 2s ease-in-out infinite;
+    border-color: hsl(var(--loop-purple)) !important;
   }
 
   /* Panel styles */

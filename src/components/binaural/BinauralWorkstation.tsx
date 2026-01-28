@@ -637,7 +637,7 @@ export function BinauralWorkstation() {
         </div>
 
         {/* Timeline Visualization */}
-        <Timeline sections={track.sections} currentTime={currentTime} currentSectionIndex={currentSectionIndex} pixelsPerSecond={pixelsPerSecond} bpm={track.bpm} onBpmChange={handleBpmChange} onSeek={seekTo} onSectionClick={handleSectionClick} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onFitToView={handleFitToView} canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} />
+        <Timeline sections={track.sections} currentTime={currentTime} currentSectionIndex={currentSectionIndex} pixelsPerSecond={pixelsPerSecond} bpm={track.bpm} loopMode={loopMode} onBpmChange={handleBpmChange} onSeek={seekTo} onSectionClick={handleSectionClick} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onFitToView={handleFitToView} canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} />
 
         {/* Section Editor */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
