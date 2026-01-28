@@ -477,6 +477,18 @@ export function BinauralWorkstation() {
   // Metronome
   useMetronome(track.bpm, metronomeEnabled && playbackState === 'playing', mixer.ensure);
 
+  // Ensure AudioContext resume happens inside the user gesture that toggles the metronome.
+  // This avoids autoplay-policy edge cases where resume() fails when called from an effect.
+  const handleMetronomeChange = useCallback(
+    (next: boolean) => {
+      if (next) {
+        mixer.ensure();
+      }
+      setMetronomeEnabled(next);
+    },
+    [mixer.ensure]
+  );
+
   // BPM handler
   const handleBpmChange = useCallback((bpm: number) => {
     setTrack(prev => ({
@@ -629,7 +641,7 @@ export function BinauralWorkstation() {
         </div>
 
         {/* Timeline Visualization */}
-        <Timeline sections={track.sections} currentTime={currentTime} currentSectionIndex={currentSectionIndex} pixelsPerSecond={pixelsPerSecond} bpm={track.bpm} onBpmChange={handleBpmChange} onSeek={seekTo} onSectionClick={handleSectionClick} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onFitToView={handleFitToView} canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} metronomeEnabled={metronomeEnabled} onMetronomeChange={setMetronomeEnabled} />
+        <Timeline sections={track.sections} currentTime={currentTime} currentSectionIndex={currentSectionIndex} pixelsPerSecond={pixelsPerSecond} bpm={track.bpm} onBpmChange={handleBpmChange} onSeek={seekTo} onSectionClick={handleSectionClick} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onFitToView={handleFitToView} canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} metronomeEnabled={metronomeEnabled} onMetronomeChange={handleMetronomeChange} />
 
         {/* Section Editor */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
