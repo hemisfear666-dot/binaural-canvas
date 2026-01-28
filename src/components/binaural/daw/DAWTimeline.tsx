@@ -37,6 +37,7 @@ interface DAWTimelineProps {
   onUndo?: () => void;
   onRedo?: () => void;
   onSectionsChange: (sections: Section[]) => void;
+  onClipsChange?: (clips: TimelineClip[], tracks: TimelineTrack[]) => void;
 }
 
 // Generate unique ID
@@ -88,6 +89,7 @@ export const DAWTimeline = memo(function DAWTimeline({
   onUndo,
   onRedo,
   onSectionsChange,
+  onClipsChange,
 }: DAWTimelineProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -124,6 +126,11 @@ export const DAWTimeline = memo(function DAWTimeline({
     setTracks(initialTracks);
     setClips(initialClips);
   }, []); // Only on mount
+
+  // Notify parent when clips or tracks change
+  useEffect(() => {
+    onClipsChange?.(clips, tracks);
+  }, [clips, tracks, onClipsChange]);
 
   // Sync BPM input
   useEffect(() => {
