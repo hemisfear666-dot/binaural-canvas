@@ -200,12 +200,12 @@ export function TriangleGenerator({
               <div className="absolute left-0 right-0 top-1/2 h-px bg-border/30" />
             </div>
 
-            {/* Labels */}
-            <div className="absolute inset-0 pointer-events-none text-[10px] text-muted-foreground uppercase tracking-wider">
-              <span className="absolute top-1 left-1/2 -translate-x-1/2">Focus</span>
-              <span className="absolute bottom-1 left-2">Ground</span>
-              <span className="absolute bottom-1 left-1/2 -translate-x-1/2">Deep</span>
-              <span className="absolute bottom-1 right-2">Mind</span>
+            {/* Labels - positioned relative to triangle vertices */}
+            <div className="absolute pointer-events-none text-[10px] text-muted-foreground uppercase tracking-wider" style={{ width: UI.width, height: UI.height }}>
+              <span className="absolute -translate-x-1/2" style={{ top: 4, left: UI.width / 2 }}>Focus</span>
+              <span className="absolute -translate-x-1/2" style={{ bottom: 4, left: 12 }}>Ground</span>
+              <span className="absolute -translate-x-1/2" style={{ bottom: 4, left: UI.width / 2 }}>Deep</span>
+              <span className="absolute -translate-x-1/2" style={{ bottom: 4, left: UI.width - 12 }}>Mind</span>
             </div>
 
             {/* Canvas for wave effect */}
