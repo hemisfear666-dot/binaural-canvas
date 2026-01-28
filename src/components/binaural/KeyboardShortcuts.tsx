@@ -52,6 +52,9 @@ interface KeyboardShortcutsProps {
   onZoomOut: () => void;
   onCycleLoopMode: () => void;
   isPlaying: boolean;
+  // Timeline clip operations
+  hasSelectedClips?: boolean;
+  onDeleteSelectedClips?: () => void;
 }
 
 export function KeyboardShortcuts({
@@ -73,6 +76,8 @@ export function KeyboardShortcuts({
   onZoomOut,
   onCycleLoopMode,
   isPlaying,
+  hasSelectedClips = false,
+  onDeleteSelectedClips,
 }: KeyboardShortcutsProps) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -139,7 +144,12 @@ export function KeyboardShortcuts({
         case 'Backspace':
           if (!isMod) {
             e.preventDefault();
-            onDeleteSelected();
+            // Prioritize timeline clip deletion if clips are selected
+            if (hasSelectedClips && onDeleteSelectedClips) {
+              onDeleteSelectedClips();
+            } else {
+              onDeleteSelected();
+            }
           }
           break;
         case 'KeyD':
@@ -188,6 +198,8 @@ export function KeyboardShortcuts({
       onZoomOut,
       onCycleLoopMode,
       onOpenChange,
+      hasSelectedClips,
+      onDeleteSelectedClips,
     ]
   );
 

@@ -243,10 +243,12 @@ export function BinauralWorkstation() {
   // Timeline clips and tracks state (lifted from DAWTimeline for audio engine)
   const [timelineClips, setTimelineClips] = useState<TimelineClip[]>([]);
   const [timelineTracks, setTimelineTracks] = useState<TimelineTrack[]>([]);
+  const [selectedTimelineClipIds, setSelectedTimelineClipIds] = useState<Set<string>>(new Set());
   
   const [savePresetDialogOpen, setSavePresetDialogOpen] = useState(false);
   const [sectionToSave, setSectionToSave] = useState<Section | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const deleteSelectedClipsRef = useRef<(() => void) | null>(null);
 
   // Custom presets management
   const {
@@ -273,6 +275,20 @@ export function BinauralWorkstation() {
     setTimelineClips(clips);
     setTimelineTracks(tracks);
   }, []);
+
+  // Handle selected clips change from DAWTimeline
+  const handleSelectedClipsChange = useCallback((selectedIds: Set<string>) => {
+    setSelectedTimelineClipIds(selectedIds);
+  }, []);
+
+  // Delete selected timeline clips (calls into DAWTimeline via ref)
+  const handleDeleteSelectedClips = useCallback(() => {
+    if (deleteSelectedClipsRef.current) {
+      deleteSelectedClipsRef.current();
+    } else if (selectedTimelineClipIds.size === 0) {
+      toast.error('No clips selected');
+    }
+  }, [selectedTimelineClipIds.size]);
   const {
     playbackState,
     currentTime,
@@ -656,7 +672,7 @@ export function BinauralWorkstation() {
 
             <PresetLibrary onAddPreset={handleAddPreset} customPresets={customPresets} onDeleteCustomPreset={deleteCustomPreset} />
 
-            <KeyboardShortcuts isOpen={helpOpen} onOpenChange={setHelpOpen} onPlay={handlePlay} onPause={pause} onStop={stop} onSkip={handleSkip} onNextSection={handleNextSection} onPrevSection={handlePrevSection} onUndo={undo} onRedo={redo} onSelectAll={handleSelectAll} onDeleteSelected={handleDeleteSelected} onDuplicateSelected={handleDuplicateSelected} onDeselectAll={handleDeselectAll} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onCycleLoopMode={handleCycleLoopMode} isPlaying={playbackState === 'playing'} />
+            <KeyboardShortcuts isOpen={helpOpen} onOpenChange={setHelpOpen} onPlay={handlePlay} onPause={pause} onStop={stop} onSkip={handleSkip} onNextSection={handleNextSection} onPrevSection={handlePrevSection} onUndo={undo} onRedo={redo} onSelectAll={handleSelectAll} onDeleteSelected={handleDeleteSelected} onDuplicateSelected={handleDuplicateSelected} onDeselectAll={handleDeselectAll} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onCycleLoopMode={handleCycleLoopMode} isPlaying={playbackState === 'playing'} hasSelectedClips={selectedTimelineClipIds.size > 0} onDeleteSelectedClips={handleDeleteSelectedClips} />
           </div>
         </div>
 
@@ -679,6 +695,8 @@ export function BinauralWorkstation() {
           onRedo={redo}
           onSectionsChange={handleSectionsChange}
           onClipsChange={handleClipsChange}
+          onSelectedClipsChange={handleSelectedClipsChange}
+          deleteSelectedClipsRef={deleteSelectedClipsRef}
         />
 
         {/* Section Editor + Controls */}
