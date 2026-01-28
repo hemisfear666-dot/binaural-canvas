@@ -214,12 +214,19 @@ export const TimelineTrackRow = memo(function TimelineTrackRow({
         style={{ minWidth: totalWidth }}
         onClick={handleTrackAreaClick}
         onDragOver={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
           if (onDragOver && trackContentRef.current) {
             onDragOver(e, track.id, trackContentRef.current);
           }
         }}
-        onDragLeave={onDragLeave}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          if (onDragLeave) onDragLeave();
+        }}
         onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
           if (onDrop && trackContentRef.current) {
             onDrop(e, track.id, trackContentRef.current);
           }
