@@ -1,4 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
+import { useElementSize } from '@/hooks/useElementSize';
 interface TriangleGeneratorProps {
   carrier: number;
   pulse: number;
@@ -28,11 +29,16 @@ export function TriangleGenerator({
   const containerRef = useRef<HTMLDivElement>(null);
   const puckRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const size = useElementSize(containerRef);
   const [isDragging, setIsDragging] = useState(false);
   const [currentPos, setCurrentPos] = useState({
     x: UI.width / 2,
     y: UI.height / 2
   });
+
+  const scaleX = (size.width || UI.width) / UI.width;
+  const scaleY = (size.height || UI.height) / UI.height;
+  const scale = Math.max(0.01, Math.min(scaleX, scaleY));
 
   // Convert audio values to position
   const getPositionFromValues = useCallback((c: number, p: number) => {
@@ -98,8 +104,11 @@ export function TriangleGenerator({
   const handlePuckMove = useCallback((clientX: number, clientY: number) => {
     if (!containerRef.current || disabled) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
+    // Convert from rendered pixels -> logical UI units so everything stays in sync while scaling
+    const localX = clientX - rect.left;
+    const localY = clientY - rect.top;
+    const x = localX / (rect.width ? rect.width / UI.width : 1);
+    const y = localY / (rect.height ? rect.height / UI.height : 1);
     const constrained = constrainToTriangle(x, y);
     setCurrentPos(constrained);
     const values = getValuesFromPosition(constrained.x, constrained.y);
@@ -157,6 +166,12 @@ export function TriangleGenerator({
   if (currentPos.y === 0) relativeX = 0;
   const intensity = Math.abs(relativeX);
   const color = relativeX < 0 ? 'hsl(var(--primary))' : 'hsl(var(--accent))';
+  const puckRadiusPx = UI.puckRadius * scale;
+  const puckSizePx = UI.puckRadius * 2 * scale;
+  const puckLeftPx = currentPos.x * scaleX - puckRadiusPx;
+  const puckTopPx = currentPos.y * scaleY - puckRadiusPx;
+  const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
+
   return <div className="panel rounded-lg p-4 mb-4 overflow-hidden min-w-0">
       <h3 className="text-xs uppercase tracking-widest font-medium mb-3 text-slate-400">
         Frequency Generator
@@ -178,11 +193,15 @@ export function TriangleGenerator({
           </div>
 
           {/* Triangle Area */}
-          <div ref={containerRef} className="relative mx-auto select-none overflow-hidden" style={{
-        width: UI.width,
-        height: UI.height,
-        maxWidth: '100%'
-      }}>
+          <div
+            ref={containerRef}
+            className="relative mx-auto select-none overflow-hidden"
+            style={{
+              width: '100%',
+              maxWidth: UI.width,
+              aspectRatio: `${UI.width} / ${UI.height}`
+            }}
+          >
             {/* Triangle Background */}
             <div className="absolute inset-0" style={{
           clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)',
@@ -209,14 +228,19 @@ export function TriangleGenerator({
             </div>
 
             {/* Canvas for wave effect */}
-            <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none opacity-30" width={UI.width} height={UI.height} />
+            <canvas
+              ref={canvasRef}
+              className="absolute inset-0 w-full h-full pointer-events-none opacity-30"
+              width={Math.max(1, Math.round((size.width || UI.width) * dpr))}
+              height={Math.max(1, Math.round((size.height || UI.height) * dpr))}
+            />
 
             {/* Puck */}
             <div ref={puckRef} onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} className={`absolute rounded-full cursor-grab transition-shadow ${isDragging ? 'cursor-grabbing' : ''}`} style={{
-          width: UI.puckRadius * 2,
-          height: UI.puckRadius * 2,
-          left: currentPos.x - UI.puckRadius,
-          top: currentPos.y - UI.puckRadius,
+           width: puckSizePx,
+           height: puckSizePx,
+           left: puckLeftPx,
+           top: puckTopPx,
           background: 'radial-gradient(circle at 30% 30%, hsl(var(--foreground)), hsl(var(--muted)))',
           boxShadow: `0 0 15px white, 0 0 ${20 + intensity * 30}px ${color}`,
           zIndex: 10
