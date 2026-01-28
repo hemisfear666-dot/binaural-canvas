@@ -613,7 +613,7 @@ export function BinauralWorkstation() {
           <div className="flex items-center gap-0.5 md:gap-1 shrink-0">
 
             {/* Selection actions */}
-            <Button variant="ghost" size="sm" onClick={selectedIndices.size === track.sections.length ? handleDeselectAll : handleSelectAll} className="h-7 md:h-8 px-1.5 md:px-2 text-muted-foreground hover:text-primary text-xs">
+            <Button variant="ghost" size="sm" onClick={selectedIndices.size === track.sections.length ? handleDeselectAll : handleSelectAll} className="h-7 md:h-8 px-1.5 md:px-2 text-muted-foreground hover:text-[#000512] hover:bg-accent text-xs">
               {selectedIndices.size === track.sections.length ? <Square className="h-3.5 w-3.5 mr-0.5" /> : <CheckSquare className="h-3.5 w-3.5 mr-0.5" />}
               <span className="hidden sm:inline">{selectedIndices.size > 0 ? `${selectedIndices.size}` : 'All'}</span>
               <span className="sm:hidden">{selectedIndices.size > 0 ? selectedIndices.size : 'All'}</span>
