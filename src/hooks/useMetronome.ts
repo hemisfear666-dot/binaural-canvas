@@ -86,8 +86,12 @@ export function useMetronome(
 
     console.log("[metronome] context obtained, state:", ctx.state, "currentTime:", ctx.currentTime);
 
-    const lookAheadSec = 0.12;
-    const intervalMs = 25;
+    // IMPORTANT: browsers can occasionally stall the JS thread (heavy UI, GC, tab throttling).
+    // If our lookahead window is too small, we can run out of scheduled clicks and it will
+    // sound like the metronome “randomly stops” even though state is still playing.
+    // Scheduling further ahead makes the metronome resilient to these stalls.
+    const lookAheadSec = 2.0;
+    const intervalMs = 50;
 
     const scheduler = () => {
       const audioCtx = ctxRef.current;
@@ -119,7 +123,7 @@ export function useMetronome(
 
       // Hard safety to avoid infinite loops on weird timing
       let scheduled = 0;
-      while (nextTime < now + lookAheadSec && scheduled < 64) {
+      while (nextTime < now + lookAheadSec && scheduled < 256) {
         scheduleClick(audioCtx, nextTime);
         i += 1;
         nextTime = startTime + i * spb;
