@@ -84,7 +84,12 @@ export function useMetronome(
     ctxRef.current = ctx;
     const token = ++initTokenRef.current;
 
-    console.log("[metronome] context obtained, state:", ctx.state, "currentTime:", ctx.currentTime);
+    console.log(
+      "[metronome] context obtained, state:",
+      ctx.state,
+      "currentTime:",
+      ctx.currentTime
+    );
 
     // IMPORTANT: browsers can occasionally stall the JS thread (heavy UI, GC, tab throttling).
     // If our lookahead window is too small, we can run out of scheduled clicks and it will
@@ -106,8 +111,23 @@ export function useMetronome(
 
       const now = audioCtx.currentTime;
       const spb = secondsPerBeatRef.current;
-      const startTime = startTimeRef.current;
 
+      // If we couldn't resume during initial enable (autoplay policy), we may have
+      // never started the interval. Keep the interval alive and “arm” the clock
+      // the first time we observe a running context.
+      if (!startTimeRef.current) {
+        startTimeRef.current = now + 0.05;
+        beatIndexRef.current = 0;
+        console.log(
+          "[metronome] clock armed",
+          "startTime:",
+          startTimeRef.current,
+          "spb:",
+          spb
+        );
+      }
+
+      const startTime = startTimeRef.current;
       if (!startTime || spb <= 0) return;
 
       // If the browser stalls (background throttling / heavy UI), jump the index forward
@@ -133,32 +153,21 @@ export function useMetronome(
       beatIndexRef.current = i;
     };
 
-    // Wait until the AudioContext is actually running before we lock the clock.
-    // This avoids cases where we schedule once against a suspended clock and then
-    // never catch up cleanly.
-    (async () => {
-      console.log("[metronome] async init, attempting resume...");
-      const ok = await resumeAudioContext(ctx, "metronome");
-      console.log("[metronome] resume result:", ok, "ctx.state:", ctx.state);
-      if (!ok) {
-        console.warn("[metronome] AudioContext not running; metronome will stay silent until resumed by a user gesture.");
-        return;
-      }
-      // If a newer enable/BPM change happened while awaiting resume, bail.
-      if (initTokenRef.current !== token) {
-        console.log("[metronome] token mismatch, bailing (newer init happened)");
-        return;
-      }
-
-      // Re-sync the metronome clock whenever it is enabled OR BPM changes.
-      // This prevents "drift" and "catch-up" bursts that can sound random.
-      startTimeRef.current = ctx.currentTime + 0.05;
-      beatIndexRef.current = 0;
-
-      console.log("[metronome] scheduler starting, startTime:", startTimeRef.current, "spb:", secondsPerBeatRef.current);
-      scheduler();
-      schedulerRef.current = window.setInterval(scheduler, intervalMs);
-    })();
+    // Start the interval immediately. If resume() is blocked by autoplay policy,
+    // the scheduler will keep retrying and will automatically arm the clock when
+    // the context becomes running (e.g. after the user presses Play).
+    console.log(
+      "[metronome] scheduler starting (interval armed)",
+      "ctx.state:",
+      ctx.state,
+      "spb:",
+      secondsPerBeatRef.current,
+      "token:",
+      token
+    );
+    void resumeAudioContext(ctx, "metronome");
+    scheduler();
+    schedulerRef.current = window.setInterval(scheduler, intervalMs);
 
     return () => {
       // Invalidate any pending async init
