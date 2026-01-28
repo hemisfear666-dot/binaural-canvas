@@ -18,6 +18,7 @@ import { TimelineContextMenu } from './TimelineContextMenu';
 import { TimelineFooter } from './TimelineFooter';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { Plus } from 'lucide-react';
 
 interface DAWTimelineProps {
   sections: Section[];
@@ -90,6 +91,7 @@ export const DAWTimeline = memo(function DAWTimeline({
 }: DAWTimelineProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const tracksContainerRef = useRef<HTMLDivElement>(null);
   
   // BPM input state
   const bpmInputRef = useRef<HTMLInputElement>(null);
@@ -111,6 +113,11 @@ export const DAWTimeline = memo(function DAWTimeline({
     clipId: string;
   } | null>(null);
 
+  // Drag state for drop zones
+  const [dragOverTrackId, setDragOverTrackId] = useState<string | null>(null);
+  const [dragOverNewTrack, setDragOverNewTrack] = useState(false);
+  const [dropTime, setDropTime] = useState<number>(0);
+
   // Initialize from sections
   useEffect(() => {
     const { tracks: initialTracks, clips: initialClips } = initializeFromSections(sections);
@@ -124,6 +131,34 @@ export const DAWTimeline = memo(function DAWTimeline({
       setLocalBpm(String(bpm));
     }
   }, [bpm, bpmFocused]);
+
+  // Scroll wheel zoom
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // Only zoom if hovering over timeline area (not inputs)
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT') return;
+      
+      // Check if we're inside the timeline
+      if (!container.contains(target)) return;
+
+      // Ctrl+wheel or just wheel when focused on timeline
+      if (e.ctrlKey || e.metaKey || container.matches(':hover')) {
+        e.preventDefault();
+        if (e.deltaY < 0) {
+          onZoomIn();
+        } else {
+          onZoomOut();
+        }
+      }
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, [onZoomIn, onZoomOut]);
 
   // Calculate total duration from clips
   const totalDuration = useMemo(() => {
@@ -191,12 +226,134 @@ export const DAWTimeline = memo(function DAWTimeline({
     const target = e.target as HTMLElement;
     if (target.closest('[data-clip]')) return; // Don't seek when clicking clips
     
-    if (!scrollContainerRef.current) return;
-    const rect = scrollContainerRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left + scrollContainerRef.current.scrollLeft;
+    if (!tracksContainerRef.current) return;
+    const rect = tracksContainerRef.current.getBoundingClientRect();
+    // Account for track header width (160px = w-40)
+    const x = e.clientX - rect.left - 160;
+    if (x < 0) return; // Clicked on track header
+    
     const time = Math.max(0, Math.min(x / pixelsPerSecond, totalDuration));
     onSeek(snapToGrid(time));
   }, [pixelsPerSecond, totalDuration, onSeek, snapToGrid]);
+
+  // Calculate drop time from mouse position
+  const calculateDropTime = useCallback((e: React.DragEvent, element: HTMLElement) => {
+    const rect = element.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    return snapToGrid(Math.max(0, x / pixelsPerSecond));
+  }, [pixelsPerSecond, snapToGrid]);
+
+  // Handle drag over track
+  const handleTrackDragOver = useCallback((e: React.DragEvent, trackId: string, trackElement: HTMLElement) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    
+    // Check if it's a section being dragged
+    if (e.dataTransfer.types.includes('application/section-id')) {
+      setDragOverTrackId(trackId);
+      setDragOverNewTrack(false);
+      setDropTime(calculateDropTime(e, trackElement));
+    }
+  }, [calculateDropTime]);
+
+  // Handle drag leave
+  const handleDragLeave = useCallback(() => {
+    setDragOverTrackId(null);
+    setDragOverNewTrack(false);
+  }, []);
+
+  // Handle drop on track
+  const handleTrackDrop = useCallback((e: React.DragEvent, trackId: string, trackElement: HTMLElement) => {
+    e.preventDefault();
+    
+    const sectionId = e.dataTransfer.getData('application/section-id');
+    const sectionJson = e.dataTransfer.getData('application/section-json');
+    
+    if (!sectionId || !sectionJson) {
+      setDragOverTrackId(null);
+      return;
+    }
+
+    try {
+      const section = JSON.parse(sectionJson) as Section;
+      const time = calculateDropTime(e, trackElement);
+      
+      // Create new clip
+      const newClip: TimelineClip = {
+        id: generateId(),
+        sectionId: section.id,
+        trackId: trackId,
+        startTime: time,
+        duration: section.duration,
+        muted: section.muted,
+      };
+      
+      setClips(prev => [...prev, newClip]);
+      toast.success(`Added "${section.name}" to timeline`);
+    } catch (err) {
+      console.error('Failed to parse dropped section:', err);
+    }
+    
+    setDragOverTrackId(null);
+    setDragOverNewTrack(false);
+  }, [calculateDropTime]);
+
+  // Handle drag over new track zone
+  const handleNewTrackDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    
+    if (e.dataTransfer.types.includes('application/section-id')) {
+      setDragOverNewTrack(true);
+      setDragOverTrackId(null);
+    }
+  }, []);
+
+  // Handle drop on new track zone
+  const handleNewTrackDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    
+    const sectionId = e.dataTransfer.getData('application/section-id');
+    const sectionJson = e.dataTransfer.getData('application/section-json');
+    
+    if (!sectionId || !sectionJson) {
+      setDragOverNewTrack(false);
+      return;
+    }
+
+    try {
+      const section = JSON.parse(sectionJson) as Section;
+      
+      // Create new track
+      const colorIndex = tracks.length % TRACK_COLORS.length;
+      const newTrack: TimelineTrack = {
+        id: generateId(),
+        name: `Track ${tracks.length + 1}`,
+        color: TRACK_COLORS[colorIndex],
+        muted: false,
+        solo: false,
+        volume: 1,
+      };
+      
+      // Create clip at start of new track
+      const newClip: TimelineClip = {
+        id: generateId(),
+        sectionId: section.id,
+        trackId: newTrack.id,
+        startTime: 0,
+        duration: section.duration,
+        muted: section.muted,
+      };
+      
+      setTracks(prev => [...prev, newTrack]);
+      setClips(prev => [...prev, newClip]);
+      toast.success(`Created new track with "${section.name}"`);
+    } catch (err) {
+      console.error('Failed to parse dropped section:', err);
+    }
+    
+    setDragOverNewTrack(false);
+  }, [tracks.length]);
 
   // Track operations
   const handleAddTrack = useCallback(() => {
@@ -231,7 +388,6 @@ export const DAWTimeline = memo(function DAWTimeline({
 
   // Track click - place section at cursor position
   const handleTrackClick = useCallback((trackId: string, time: number) => {
-    // For now, just seek to that position
     onSeek(snapToGrid(time));
   }, [onSeek, snapToGrid]);
 
@@ -271,7 +427,6 @@ export const DAWTimeline = memo(function DAWTimeline({
   }, []);
 
   const handleClipDoubleClick = useCallback((clipId: string) => {
-    // TODO: Open clip editor or focus on section
     toast.info('Double-click to edit (coming soon)');
   }, []);
 
@@ -365,7 +520,7 @@ export const DAWTimeline = memo(function DAWTimeline({
       </div>
 
       {/* Main timeline area */}
-      <div className="flex flex-col">
+      <div className="flex flex-col relative">
         {/* Time ruler */}
         <div className="flex border-b border-border">
           {/* Track header spacer */}
@@ -401,7 +556,8 @@ export const DAWTimeline = memo(function DAWTimeline({
 
         {/* Tracks */}
         <div 
-          className="max-h-[400px] overflow-y-auto overflow-x-hidden"
+          ref={tracksContainerRef}
+          className="max-h-[400px] overflow-y-auto overflow-x-hidden relative"
           onClick={handleTimelineClick}
         >
           <div className="overflow-x-auto">
@@ -425,13 +581,37 @@ export const DAWTimeline = memo(function DAWTimeline({
                 onClipDoubleClick={handleClipDoubleClick}
                 onTrackClick={handleTrackClick}
                 snapToGrid={snapToGrid}
+                isDragOver={dragOverTrackId === track.id}
+                dropTime={dropTime}
+                onDragOver={handleTrackDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleTrackDrop}
               />
             ))}
+            
+            {/* Drop zone for new track */}
+            <div
+              className={`
+                flex items-center justify-center h-14 border-2 border-dashed transition-all
+                ${dragOverNewTrack 
+                  ? 'border-primary bg-primary/10' 
+                  : 'border-border/30 hover:border-border/50'
+                }
+              `}
+              onDragOver={handleNewTrackDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleNewTrackDrop}
+            >
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Plus className="h-4 w-4" />
+                <span className="text-xs">Drop here to create new track</span>
+              </div>
+            </div>
           </div>
 
           {/* Playhead line across all tracks */}
           <div
-            className="absolute top-6 bottom-0 w-0.5 pointer-events-none z-30"
+            className="absolute top-0 bottom-0 w-0.5 pointer-events-none z-30"
             style={{ 
               left: `calc(10rem + ${currentTime * pixelsPerSecond}px)`,
               background: 'linear-gradient(180deg, hsl(var(--accent)) 0%, hsl(var(--primary)) 100%)',
