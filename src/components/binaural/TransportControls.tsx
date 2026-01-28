@@ -1,25 +1,52 @@
 import { Button } from '@/components/ui/button';
-import { Play, Pause, Square, SkipBack } from 'lucide-react';
-import { PlaybackState } from '@/types/binaural';
+import { Play, Pause, Square, SkipBack, Repeat, Repeat1 } from 'lucide-react';
+import { PlaybackState, LoopMode } from '@/types/binaural';
 import { formatTime } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface TransportControlsProps {
   playbackState: PlaybackState;
   currentTime: number;
   totalDuration: number;
+  loopMode: LoopMode;
   onPlay: () => void;
   onPause: () => void;
   onStop: () => void;
+  onLoopModeChange: (mode: LoopMode) => void;
 }
 
 export function TransportControls({
   playbackState,
   currentTime,
   totalDuration,
+  loopMode,
   onPlay,
   onPause,
   onStop,
+  onLoopModeChange,
 }: TransportControlsProps) {
+  const cycleLoopMode = () => {
+    const modes: LoopMode[] = ['off', 'repeat-once', 'loop'];
+    const currentIndex = modes.indexOf(loopMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    onLoopModeChange(modes[nextIndex]);
+  };
+
+  const getLoopTooltip = () => {
+    switch (loopMode) {
+      case 'off':
+        return 'Loop: Off';
+      case 'repeat-once':
+        return 'Repeat Once';
+      case 'loop':
+        return 'Loop';
+    }
+  };
   return (
     <div className="flex items-center gap-2 sm:gap-4">
       {/* Time Display */}
@@ -69,6 +96,35 @@ export function TransportControls({
             <Play className="h-4 w-4 sm:h-5 sm:w-5 ml-0.5" />
           </Button>
         )}
+
+        {/* Loop Mode Toggle */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={cycleLoopMode}
+                className={`h-8 w-8 sm:h-10 sm:w-10 border-border relative ${
+                  loopMode === 'off'
+                    ? 'text-muted-foreground hover:text-foreground'
+                    : loopMode === 'repeat-once'
+                    ? 'border-accent text-accent hover:border-accent hover:text-accent bg-accent/10'
+                    : 'border-primary text-primary hover:border-primary hover:text-primary bg-primary/10'
+                }`}
+              >
+                {loopMode === 'repeat-once' ? (
+                  <Repeat1 className="h-3 w-3 sm:h-4 sm:w-4" />
+                ) : (
+                  <Repeat className="h-3 w-3 sm:h-4 sm:w-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{getLoopTooltip()}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       {/* Status Indicator - Hidden on mobile */}

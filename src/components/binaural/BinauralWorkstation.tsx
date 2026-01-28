@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Section, Track, WaveformType, NoiseSettings, AmbienceSettings, AmbientMusicSettings, EffectsSettings, NoiseType, AmbienceType, AmbientMusicType } from '@/types/binaural';
+import { Section, Track, WaveformType, NoiseSettings, AmbienceSettings, AmbientMusicSettings, EffectsSettings, NoiseType, AmbienceType, AmbientMusicType, LoopMode } from '@/types/binaural';
 import { useAudioMixer } from '@/hooks/useAudioMixer';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { useNoiseGenerator } from '@/hooks/useNoiseGenerator';
@@ -235,6 +235,7 @@ export function BinauralWorkstation() {
   const [activeEditIndex, setActiveEditIndex] = useState<number | null>(0);
   const [helpOpen, setHelpOpen] = useState(false);
   const [pixelsPerSecond, setPixelsPerSecond] = useState(8);
+  const [loopMode, setLoopMode] = useState<LoopMode>('off');
   
   const [savePresetDialogOpen, setSavePresetDialogOpen] = useState(false);
   const [sectionToSave, setSectionToSave] = useState<Section | null>(null);
@@ -270,7 +271,7 @@ export function BinauralWorkstation() {
     stopTest,
     seekTo,
     getTotalDuration
-  } = useAudioEngine(track.sections, track.isIsochronic, track.waveform, mixer.ensure, mixer.getToneInput);
+  } = useAudioEngine(track.sections, track.isIsochronic, track.waveform, mixer.ensure, mixer.getToneInput, loopMode, setLoopMode);
 
   // Wrap stop to also kill reverb tail immediately
   const stop = useCallback(() => {
@@ -445,6 +446,14 @@ export function BinauralWorkstation() {
   const handleZoomOut = useCallback(() => {
     setPixelsPerSecond(prev => Math.max(prev / 1.5, 1));
   }, []);
+
+  const handleCycleLoopMode = useCallback(() => {
+    const modes: LoopMode[] = ['off', 'repeat-once', 'loop'];
+    setLoopMode(prev => {
+      const currentIndex = modes.indexOf(prev);
+      return modes[(currentIndex + 1) % modes.length];
+    });
+  }, []);
   const handleFitToView = useCallback(() => {
     if (containerRef.current && totalDuration > 0) {
       const containerWidth = containerRef.current.offsetWidth - 48;
@@ -587,7 +596,7 @@ export function BinauralWorkstation() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <TransportControls playbackState={playbackState} currentTime={currentTime} totalDuration={totalDuration} onPlay={handlePlay} onPause={pause} onStop={stop} />
+            <TransportControls playbackState={playbackState} currentTime={currentTime} totalDuration={totalDuration} loopMode={loopMode} onLoopModeChange={setLoopMode} onPlay={handlePlay} onPause={pause} onStop={stop} />
           </div>
         </div>
       </header>
@@ -623,7 +632,7 @@ export function BinauralWorkstation() {
 
             <PresetLibrary onAddPreset={handleAddPreset} customPresets={customPresets} onDeleteCustomPreset={deleteCustomPreset} />
 
-            <KeyboardShortcuts isOpen={helpOpen} onOpenChange={setHelpOpen} onPlay={handlePlay} onPause={pause} onStop={stop} onSkip={handleSkip} onNextSection={handleNextSection} onPrevSection={handlePrevSection} onUndo={undo} onRedo={redo} onSelectAll={handleSelectAll} onDeleteSelected={handleDeleteSelected} onDuplicateSelected={handleDuplicateSelected} onDeselectAll={handleDeselectAll} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} isPlaying={playbackState === 'playing'} />
+            <KeyboardShortcuts isOpen={helpOpen} onOpenChange={setHelpOpen} onPlay={handlePlay} onPause={pause} onStop={stop} onSkip={handleSkip} onNextSection={handleNextSection} onPrevSection={handlePrevSection} onUndo={undo} onRedo={redo} onSelectAll={handleSelectAll} onDeleteSelected={handleDeleteSelected} onDuplicateSelected={handleDuplicateSelected} onDeselectAll={handleDeselectAll} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onCycleLoopMode={handleCycleLoopMode} isPlaying={playbackState === 'playing'} />
           </div>
         </div>
 
