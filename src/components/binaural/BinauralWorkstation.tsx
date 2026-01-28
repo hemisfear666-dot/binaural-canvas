@@ -7,7 +7,7 @@ import { useAmbiencePlayer } from '@/hooks/useAmbiencePlayer';
 import { useAmbientMusicPlayer } from '@/hooks/useAmbientMusicPlayer';
 import { useHistory } from '@/hooks/useHistory';
 import { useCustomPresets } from '@/hooks/useCustomPresets';
-import { useMetronome } from '@/hooks/useMetronome';
+
 import { GlobalControls } from './GlobalControls';
 import { TransportControls } from './TransportControls';
 import { Timeline } from './Timeline';
@@ -20,7 +20,7 @@ import { TriangleGenerator } from './TriangleGenerator';
 import { AudioLayers } from './AudioLayers';
 import { WaveformSelector } from './WaveformSelector';
 import { EffectsRack } from './EffectsRack';
-import { MetronomeDebug } from './MetronomeDebug';
+
 import { Button } from '@/components/ui/button';
 import { Copy, Trash2, CheckSquare, Square } from 'lucide-react';
 import { toast } from 'sonner';
@@ -235,7 +235,7 @@ export function BinauralWorkstation() {
   const [activeEditIndex, setActiveEditIndex] = useState<number | null>(0);
   const [helpOpen, setHelpOpen] = useState(false);
   const [pixelsPerSecond, setPixelsPerSecond] = useState(8);
-  const [metronomeEnabled, setMetronomeEnabled] = useState(false);
+  
   const [savePresetDialogOpen, setSavePresetDialogOpen] = useState(false);
   const [sectionToSave, setSectionToSave] = useState<Section | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -475,20 +475,6 @@ export function BinauralWorkstation() {
     }
   }, [sectionToSave, addCustomPreset]);
 
-  // Metronome
-  useMetronome(track.bpm, metronomeEnabled && playbackState === 'playing', mixer.ensure);
-
-  // Ensure AudioContext resume happens inside the user gesture that toggles the metronome.
-  // This avoids autoplay-policy edge cases where resume() fails when called from an effect.
-  const handleMetronomeChange = useCallback(
-    (next: boolean) => {
-      if (next) {
-        mixer.ensure();
-      }
-      setMetronomeEnabled(next);
-    },
-    [mixer.ensure]
-  );
 
   // BPM handler
   const handleBpmChange = useCallback((bpm: number) => {
@@ -642,7 +628,7 @@ export function BinauralWorkstation() {
         </div>
 
         {/* Timeline Visualization */}
-        <Timeline sections={track.sections} currentTime={currentTime} currentSectionIndex={currentSectionIndex} pixelsPerSecond={pixelsPerSecond} bpm={track.bpm} onBpmChange={handleBpmChange} onSeek={seekTo} onSectionClick={handleSectionClick} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onFitToView={handleFitToView} canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} metronomeEnabled={metronomeEnabled} onMetronomeChange={handleMetronomeChange} />
+        <Timeline sections={track.sections} currentTime={currentTime} currentSectionIndex={currentSectionIndex} pixelsPerSecond={pixelsPerSecond} bpm={track.bpm} onBpmChange={handleBpmChange} onSeek={seekTo} onSectionClick={handleSectionClick} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onFitToView={handleFitToView} canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} />
 
         {/* Section Editor */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
@@ -684,12 +670,5 @@ export function BinauralWorkstation() {
       {/* Save Preset Dialog */}
       <SavePresetDialog open={savePresetDialogOpen} onOpenChange={setSavePresetDialogOpen} defaultName={sectionToSave?.name || ''} onSave={handleConfirmSavePreset} />
 
-      {/* Metronome Debug Panel */}
-      <MetronomeDebug
-        bpm={track.bpm}
-        metronomeEnabled={metronomeEnabled}
-        playbackState={playbackState}
-        audioContext={mixer.getContext()}
-      />
     </div>;
 }
