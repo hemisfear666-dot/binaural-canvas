@@ -293,69 +293,6 @@ export function useAudioEngine(
   // Track if we've done the repeat-once replay
   const hasRepeatedOnceRef = useRef(false);
 
-  const updateTime = useCallback(() => {
-    if (state.playbackState !== 'playing' || !audioCtxRef.current) return;
-
-    const elapsed = audioCtxRef.current.currentTime - playbackStartRef.current + startTimeRef.current;
-    const totalDuration = getTotalDuration();
-
-    if (elapsed >= totalDuration) {
-      const currentLoopMode = loopModeRef.current;
-
-      if (currentLoopMode === 'loop') {
-        // Continuous loop: restart from beginning
-        cleanupMainNodes();
-        startTimeRef.current = 0;
-        playbackStartRef.current = audioCtxRef.current.currentTime;
-        // Re-schedule all sections
-        scheduleAllSections(0);
-        setState((prev) => ({
-          ...prev,
-          currentTime: 0,
-          currentSectionIndex: getCurrentSection(0),
-        }));
-        animationFrameRef.current = requestAnimationFrame(updateTime);
-        return;
-      } else if (currentLoopMode === 'repeat-once' && !hasRepeatedOnceRef.current) {
-        // Repeat once: restart once, then stop
-        hasRepeatedOnceRef.current = true;
-        cleanupMainNodes();
-        startTimeRef.current = 0;
-        playbackStartRef.current = audioCtxRef.current.currentTime;
-        // Re-schedule all sections
-        scheduleAllSections(0);
-        setState((prev) => ({
-          ...prev,
-          currentTime: 0,
-          currentSectionIndex: getCurrentSection(0),
-        }));
-        // Switch mode to off after the repeat
-        onLoopModeChange?.('off');
-        animationFrameRef.current = requestAnimationFrame(updateTime);
-        return;
-      }
-
-      // Default: stop
-      setState((prev) => ({
-        ...prev,
-        playbackState: 'stopped',
-        currentTime: 0,
-        currentSectionIndex: null,
-      }));
-      cleanupMainNodes();
-      hasRepeatedOnceRef.current = false;
-      return;
-    }
-
-    setState((prev) => ({
-      ...prev,
-      currentTime: elapsed,
-      currentSectionIndex: getCurrentSection(elapsed),
-    }));
-
-    animationFrameRef.current = requestAnimationFrame(updateTime);
-  }, [cleanupMainNodes, getCurrentSection, getTotalDuration, state.playbackState, onLoopModeChange]);
-
   // Helper to schedule all sections from a given time
   const scheduleAllSections = useCallback((fromTime: number) => {
     if (!audioCtxRef.current) return;
@@ -396,6 +333,75 @@ export function useAudioEngine(
       timeAccumulator += section.duration;
     });
   }, [sections, getRampEnabled, playTone]);
+
+  // Keep a ref to scheduleAllSections so updateTime always has the latest version
+  const scheduleAllSectionsRef = useRef(scheduleAllSections);
+  useEffect(() => {
+    scheduleAllSectionsRef.current = scheduleAllSections;
+  }, [scheduleAllSections]);
+
+  const updateTime = useCallback(() => {
+    if (state.playbackState !== 'playing' || !audioCtxRef.current) return;
+
+    const elapsed = audioCtxRef.current.currentTime - playbackStartRef.current + startTimeRef.current;
+    const totalDuration = getTotalDuration();
+
+    if (elapsed >= totalDuration) {
+      const currentLoopMode = loopModeRef.current;
+
+      if (currentLoopMode === 'loop') {
+        // Continuous loop: restart from beginning
+        cleanupMainNodes();
+        startTimeRef.current = 0;
+        playbackStartRef.current = audioCtxRef.current.currentTime;
+        // Re-schedule all sections using ref
+        scheduleAllSectionsRef.current(0);
+        setState((prev) => ({
+          ...prev,
+          currentTime: 0,
+          currentSectionIndex: getCurrentSection(0),
+        }));
+        animationFrameRef.current = requestAnimationFrame(updateTime);
+        return;
+      } else if (currentLoopMode === 'repeat-once' && !hasRepeatedOnceRef.current) {
+        // Repeat once: restart once, then stop
+        hasRepeatedOnceRef.current = true;
+        cleanupMainNodes();
+        startTimeRef.current = 0;
+        playbackStartRef.current = audioCtxRef.current.currentTime;
+        // Re-schedule all sections using ref
+        scheduleAllSectionsRef.current(0);
+        setState((prev) => ({
+          ...prev,
+          currentTime: 0,
+          currentSectionIndex: getCurrentSection(0),
+        }));
+        // Switch mode to off after the repeat
+        onLoopModeChange?.('off');
+        animationFrameRef.current = requestAnimationFrame(updateTime);
+        return;
+      }
+
+      // Default: stop
+      setState((prev) => ({
+        ...prev,
+        playbackState: 'stopped',
+        currentTime: 0,
+        currentSectionIndex: null,
+      }));
+      cleanupMainNodes();
+      hasRepeatedOnceRef.current = false;
+      return;
+    }
+
+    setState((prev) => ({
+      ...prev,
+      currentTime: elapsed,
+      currentSectionIndex: getCurrentSection(elapsed),
+    }));
+
+    animationFrameRef.current = requestAnimationFrame(updateTime);
+  }, [cleanupMainNodes, getCurrentSection, getTotalDuration, state.playbackState, onLoopModeChange]);
 
   useEffect(() => {
     if (state.playbackState === 'playing') {
