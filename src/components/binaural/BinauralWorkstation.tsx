@@ -19,9 +19,10 @@ import { StatusBar } from './StatusBar';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { PresetLibrary, SavePresetDialog } from './PresetLibrary';
 import { TriangleGenerator } from './TriangleGenerator';
-import { AudioLayers } from './AudioLayers';
+import { AudioLayersCompact } from './AudioLayersCompact';
 import { WaveformSelector } from './WaveformSelector';
 import { EffectsRack } from './EffectsRack';
+import { ImportExportCompact } from './ImportExportCompact';
 
 import { Button } from '@/components/ui/button';
 import { Copy, Trash2, CheckSquare, Square } from 'lucide-react';
@@ -251,7 +252,8 @@ export function BinauralWorkstation() {
   const {
     presets: customPresets,
     addPreset: addCustomPreset,
-    deletePreset: deleteCustomPreset
+    deletePreset: deleteCustomPreset,
+    importPresets: importCustomPresets
   } = useCustomPresets();
 
   // Shared mixer (tones + background layers + FX)
@@ -679,36 +681,38 @@ export function BinauralWorkstation() {
           onClipsChange={handleClipsChange}
         />
 
-        {/* Section Editor */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
+        {/* Section Editor + Controls */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
           {/* Mobile: Generator first for quick access */}
-          <div className="lg:hidden space-y-4">
+          <div className="lg:hidden">
             <TriangleGenerator carrier={activeSection?.carrier ?? 200} pulse={activeSection?.beat ?? 10} onCarrierChange={handleGeneratorCarrierChange} onPulseChange={handleGeneratorPulseChange} disabled={activeEditIndex === null} />
           </div>
 
-          <div className="lg:col-span-3 space-y-4">
+          {/* Main Content Area - Sequence Editor */}
+          <div className="lg:col-span-8 space-y-4">
             <div className="panel rounded-lg p-3 md:p-4">
               <h3 className="text-xs uppercase tracking-widest font-medium mb-3 md:mb-4 text-slate-400">
-                Sequence Editor
+                Sequence Library
               </h3>
               <SectionList sections={track.sections} currentSectionIndex={currentSectionIndex} selectedIndices={selectedIndices} activeEditIndex={activeEditIndex} testingIndex={testingIndex} onSectionsChange={handleSectionsChange} onTestSection={handleTestSection} onStopTest={stopTest} onToggleSelect={handleToggleSelect} onEditClick={handleSectionEditClick} onSaveAsPreset={handleSaveAsPreset} />
             </div>
 
-            {/* Effects Rack - directly beneath sequence editor */}
+            {/* Effects Rack - Full width below sequence list */}
             <EffectsRack effects={track.effects} onEffectsChange={handleEffectsChange} />
           </div>
 
-          {/* Desktop: Generator on side */}
-          <div className="hidden lg:block lg:col-span-1 space-y-4 min-w-0 overflow-hidden">
-            <TriangleGenerator carrier={activeSection?.carrier ?? 200} pulse={activeSection?.beat ?? 10} onCarrierChange={handleGeneratorCarrierChange} onPulseChange={handleGeneratorPulseChange} disabled={activeEditIndex === null} />
-            <AudioLayers noise={track.noise} ambience={track.ambience} ambientMusic={track.ambientMusic} onNoiseChange={handleNoiseChange} onAmbienceChange={handleAmbienceChange} onAmbientMusicChange={handleAmbientMusicChange} onPreviewNoise={handlePreviewNoise} onStopPreviewNoise={handleStopPreviewNoise} onPreviewAmbience={handlePreviewAmbience} onStopPreviewAmbience={handleStopPreviewAmbience} onPreviewAmbientMusic={handlePreviewAmbientMusic} onStopPreviewAmbientMusic={handleStopPreviewAmbientMusic} />
-            <ImportExport track={track} onImport={handleImport} onTitleChange={handleTitleChange} />
-          </div>
-
-          {/* Mobile: Audio Layers and Import/Export at bottom */}
-          <div className="lg:hidden space-y-4">
-            <AudioLayers noise={track.noise} ambience={track.ambience} ambientMusic={track.ambientMusic} onNoiseChange={handleNoiseChange} onAmbienceChange={handleAmbienceChange} onAmbientMusicChange={handleAmbientMusicChange} onPreviewNoise={handlePreviewNoise} onStopPreviewNoise={handleStopPreviewNoise} onPreviewAmbience={handlePreviewAmbience} onStopPreviewAmbience={handleStopPreviewAmbience} onPreviewAmbientMusic={handlePreviewAmbientMusic} onStopPreviewAmbientMusic={handleStopPreviewAmbientMusic} />
-            <ImportExport track={track} onImport={handleImport} onTitleChange={handleTitleChange} />
+          {/* Sidebar - Generator, Layers, Project */}
+          <div className="lg:col-span-4 space-y-4">
+            {/* Desktop: Triangle Generator */}
+            <div className="hidden lg:block">
+              <TriangleGenerator carrier={activeSection?.carrier ?? 200} pulse={activeSection?.beat ?? 10} onCarrierChange={handleGeneratorCarrierChange} onPulseChange={handleGeneratorPulseChange} disabled={activeEditIndex === null} />
+            </div>
+            
+            {/* Background Layers - Compact */}
+            <AudioLayersCompact noise={track.noise} ambience={track.ambience} ambientMusic={track.ambientMusic} onNoiseChange={handleNoiseChange} onAmbienceChange={handleAmbienceChange} onAmbientMusicChange={handleAmbientMusicChange} onPreviewNoise={handlePreviewNoise} onStopPreviewNoise={handleStopPreviewNoise} onPreviewAmbience={handlePreviewAmbience} onStopPreviewAmbience={handleStopPreviewAmbience} onPreviewAmbientMusic={handlePreviewAmbientMusic} onStopPreviewAmbientMusic={handleStopPreviewAmbientMusic} />
+            
+            {/* Import/Export - Compact */}
+            <ImportExportCompact track={track} onImport={handleImport} onTitleChange={handleTitleChange} customPresets={customPresets} onImportPresets={importCustomPresets} />
           </div>
         </div>
       </main>
