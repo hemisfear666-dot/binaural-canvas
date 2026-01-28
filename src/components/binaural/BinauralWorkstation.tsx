@@ -20,6 +20,7 @@ import { TriangleGenerator } from './TriangleGenerator';
 import { AudioLayers } from './AudioLayers';
 import { WaveformSelector } from './WaveformSelector';
 import { EffectsRack } from './EffectsRack';
+import { MetronomeDebug } from './MetronomeDebug';
 import { Button } from '@/components/ui/button';
 import { Copy, Trash2, CheckSquare, Square } from 'lucide-react';
 import { toast } from 'sonner';
@@ -682,5 +683,13 @@ export function BinauralWorkstation() {
 
       {/* Save Preset Dialog */}
       <SavePresetDialog open={savePresetDialogOpen} onOpenChange={setSavePresetDialogOpen} defaultName={sectionToSave?.name || ''} onSave={handleConfirmSavePreset} />
+
+      {/* Metronome Debug Panel */}
+      <MetronomeDebug
+        bpm={track.bpm}
+        metronomeEnabled={metronomeEnabled}
+        playbackState={playbackState}
+        audioContext={mixer.getContext()}
+      />
     </div>;
 }

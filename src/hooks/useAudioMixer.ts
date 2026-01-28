@@ -461,8 +461,11 @@ export function useAudioMixer(
     applyVolumesAndFx();
   }, [applyVolumesAndFx]);
 
+  const getContext = useCallback(() => ctxRef.current, []);
+
   return {
     ensure,
+    getContext,
     getToneInput,
     getNoiseInput,
     getAmbienceInput,
