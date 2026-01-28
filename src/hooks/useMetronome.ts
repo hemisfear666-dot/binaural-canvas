@@ -73,13 +73,18 @@ export function useMetronome(
       schedulerRef.current = null;
     }
 
+    console.log("[metronome] effect triggered, enabled:", enabled, "bpm:", bpm);
+
     if (!enabled) {
+      console.log("[metronome] disabled, exiting early");
       return;
     }
 
     const ctx = ensureCtxRef.current();
     ctxRef.current = ctx;
     const token = ++initTokenRef.current;
+
+    console.log("[metronome] context obtained, state:", ctx.state, "currentTime:", ctx.currentTime);
 
     const lookAheadSec = 0.12;
     const intervalMs = 25;
@@ -128,19 +133,25 @@ export function useMetronome(
     // This avoids cases where we schedule once against a suspended clock and then
     // never catch up cleanly.
     (async () => {
+      console.log("[metronome] async init, attempting resume...");
       const ok = await resumeAudioContext(ctx, "metronome");
+      console.log("[metronome] resume result:", ok, "ctx.state:", ctx.state);
       if (!ok) {
         console.warn("[metronome] AudioContext not running; metronome will stay silent until resumed by a user gesture.");
         return;
       }
       // If a newer enable/BPM change happened while awaiting resume, bail.
-      if (initTokenRef.current !== token) return;
+      if (initTokenRef.current !== token) {
+        console.log("[metronome] token mismatch, bailing (newer init happened)");
+        return;
+      }
 
       // Re-sync the metronome clock whenever it is enabled OR BPM changes.
       // This prevents "drift" and "catch-up" bursts that can sound random.
       startTimeRef.current = ctx.currentTime + 0.05;
       beatIndexRef.current = 0;
 
+      console.log("[metronome] scheduler starting, startTime:", startTimeRef.current, "spb:", secondsPerBeatRef.current);
       scheduler();
       schedulerRef.current = window.setInterval(scheduler, intervalMs);
     })();
