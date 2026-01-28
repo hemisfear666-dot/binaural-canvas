@@ -10,6 +10,7 @@ import { useCustomPresets } from '@/hooks/useCustomPresets';
 
 import { GlobalControls } from './GlobalControls';
 import { TransportControls } from './TransportControls';
+import { DAWTimeline } from './daw';
 import { Timeline } from './Timeline';
 import { SectionList } from './SectionList';
 import { ImportExport } from './ImportExport';
@@ -636,8 +637,25 @@ export function BinauralWorkstation() {
           </div>
         </div>
 
-        {/* Timeline Visualization */}
-        <Timeline sections={track.sections} currentTime={currentTime} currentSectionIndex={currentSectionIndex} pixelsPerSecond={pixelsPerSecond} bpm={track.bpm} loopMode={loopMode} onBpmChange={handleBpmChange} onSeek={seekTo} onSectionClick={handleSectionClick} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onFitToView={handleFitToView} canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} />
+        {/* DAW Timeline */}
+        <DAWTimeline 
+          sections={track.sections} 
+          currentTime={currentTime} 
+          currentSectionIndex={currentSectionIndex} 
+          pixelsPerSecond={pixelsPerSecond} 
+          bpm={track.bpm} 
+          loopMode={loopMode} 
+          onBpmChange={handleBpmChange} 
+          onSeek={seekTo} 
+          onZoomIn={handleZoomIn} 
+          onZoomOut={handleZoomOut} 
+          onFitToView={handleFitToView} 
+          canUndo={canUndo} 
+          canRedo={canRedo} 
+          onUndo={undo} 
+          onRedo={redo}
+          onSectionsChange={handleSectionsChange}
+        />
 
         {/* Section Editor */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
