@@ -20,7 +20,6 @@ import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { PresetLibrary, SavePresetDialog } from './PresetLibrary';
 import { TriangleGenerator } from './TriangleGenerator';
 import { AudioLayersCompact } from './AudioLayersCompact';
-import { WaveformSelector } from './WaveformSelector';
 import { EffectsRack } from './EffectsRack';
 import { ImportExportCompact } from './ImportExportCompact';
 
@@ -645,11 +644,9 @@ export function BinauralWorkstation() {
       <main className="max-w-7xl mx-auto p-3 md:p-6 space-y-4 md:space-y-6" ref={containerRef}>
         {/* Global Controls + Toolbar */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 md:gap-4">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-4">
-            <GlobalControls masterVolume={track.masterVolume} onVolumeChange={handleVolumeChange} isIsochronic={track.isIsochronic} onModeChange={handleModeChange} />
-            {/* Waveform Selector */}
-            <WaveformSelector waveform={track.waveform} onWaveformChange={handleWaveformChange} />
-          </div>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-4">
+          <GlobalControls masterVolume={track.masterVolume} onVolumeChange={handleVolumeChange} isIsochronic={track.isIsochronic} onModeChange={handleModeChange} />
+        </div>
           <div className="flex items-center gap-0.5 md:gap-1 shrink-0">
 
             {/* Selection actions */}

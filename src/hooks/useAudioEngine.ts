@@ -135,10 +135,11 @@ export function useAudioEngine(
     filterL?: BiquadFilterNode;
     filterR?: BiquadFilterNode;
     filter?: BiquadFilterNode;
+    waveform: WaveformType; // Track waveform for live switching
     endTime: number;
   }>>(new Map());
 
-  // Store waveform ref for live updates
+  // Store waveform ref for test mode live updates (not used for playback anymore)
   const waveformRef = useRef(waveform);
   useEffect(() => {
     waveformRef.current = waveform;
@@ -150,6 +151,7 @@ export function useAudioEngine(
         clipId: string;
         section: Section;
         duration: number;
+        clipWaveform: WaveformType; // Per-clip waveform
         startOffset?: number;
         isTest?: boolean;
       }
@@ -157,13 +159,13 @@ export function useAudioEngine(
       if (!audioCtxRef.current || !masterGainRef.current) return;
 
       const ctx = audioCtxRef.current;
-      const { section, duration, clipId } = opts;
+      const { section, duration, clipId, clipWaveform } = opts;
       const startOffset = opts.startOffset ?? 0;
       const now = ctx.currentTime + startOffset;
       const endTime = now + duration;
 
       const rampEnabled = getRampEnabled(section);
-      const needsFilter = waveform !== 'sine';
+      const needsFilter = clipWaveform !== 'sine';
 
       const sectionGain = ctx.createGain();
       sectionGain.gain.setValueAtTime(section.muted ? 0 : section.volume, now);
@@ -183,7 +185,7 @@ export function useAudioEngine(
 
       if (isIsochronic) {
         const osc = ctx.createOscillator();
-        osc.type = waveform;
+        osc.type = clipWaveform;
         osc.frequency.setValueAtTime(section.carrier, now);
         if (rampEnabled && section.endCarrier !== undefined && section.endCarrier !== section.carrier) {
           osc.frequency.linearRampToValueAtTime(finalCarrier, endTime);
@@ -205,7 +207,7 @@ export function useAudioEngine(
         lfoGain.connect(amp.gain);
 
         if (needsFilter) {
-          const filter = createLowPassFilter(ctx, waveform);
+          const filter = createLowPassFilter(ctx, clipWaveform);
           osc.connect(filter);
           filter.connect(amp);
           nodesToTrack.push(filter);
@@ -224,13 +226,13 @@ export function useAudioEngine(
         nodesToTrack.push(osc, lfo, amp, lfoGain, sectionGain);
         
         if (!opts.isTest) {
-          activeOscillatorsRef.current.set(clipId, { osc, lfo, endTime });
+          activeOscillatorsRef.current.set(clipId, { osc, lfo, waveform: clipWaveform, endTime });
         }
       } else {
         const oscL = ctx.createOscillator();
         const oscR = ctx.createOscillator();
-        oscL.type = waveform;
-        oscR.type = waveform;
+        oscL.type = clipWaveform;
+        oscR.type = clipWaveform;
 
         const panL = ctx.createStereoPanner();
         const panR = ctx.createStereoPanner();
@@ -250,8 +252,8 @@ export function useAudioEngine(
         }
 
         if (needsFilter) {
-          const filterL = createLowPassFilter(ctx, waveform);
-          const filterR = createLowPassFilter(ctx, waveform);
+          const filterL = createLowPassFilter(ctx, clipWaveform);
+          const filterR = createLowPassFilter(ctx, clipWaveform);
           oscL.connect(filterL);
           oscR.connect(filterR);
           filterL.connect(panL);
@@ -274,11 +276,11 @@ export function useAudioEngine(
         nodesToTrack.push(oscL, oscR, panL, panR, sectionGain);
         
         if (!opts.isTest) {
-          activeOscillatorsRef.current.set(clipId, { oscL, oscR, endTime });
+          activeOscillatorsRef.current.set(clipId, { oscL, oscR, waveform: clipWaveform, endTime });
         }
       }
     },
-    [createLowPassFilter, getRampEnabled, isIsochronic, waveform]
+    [createLowPassFilter, getRampEnabled, isIsochronic]
   );
 
   // Generate playback schedule from clips
@@ -353,6 +355,7 @@ export function useAudioEngine(
         clipId: event.clipId,
         section: adjustedSection,
         duration: remainingDuration,
+        clipWaveform: event.waveform,
         startOffset,
         isTest: false,
       });
@@ -453,6 +456,85 @@ export function useAudioEngine(
       scheduled.gain.gain.setValueAtTime(isMuted ? 0 : section.volume, t);
     }
   }, [sections, clips, state.playbackState]);
+
+  // Live waveform switching: restart clips when their waveform changes during playback
+  const prevClipsWaveformRef = useRef<Map<string, WaveformType>>(new Map());
+  useEffect(() => {
+    if (state.playbackState !== 'playing' || !audioCtxRef.current) {
+      prevClipsWaveformRef.current.clear();
+      return;
+    }
+
+    const ctx = audioCtxRef.current;
+    const currentTime = state.currentTime;
+    const clipMap = new Map(clips.map((c) => [c.id, c] as const));
+    const sectionMap = new Map(sections.map((s) => [s.id, s] as const));
+
+    // Check each active oscillator for waveform changes
+    for (const [clipId, oscData] of activeOscillatorsRef.current) {
+      const clip = clipMap.get(clipId);
+      if (!clip) continue;
+
+      const prevWaveform = prevClipsWaveformRef.current.get(clipId);
+      
+      // If waveform changed, restart this clip
+      if (prevWaveform !== undefined && prevWaveform !== clip.waveform) {
+        const section = sectionMap.get(clip.sectionId);
+        if (!section) continue;
+
+        // Stop the old oscillators
+        try {
+          if (oscData.osc) oscData.osc.stop();
+          if (oscData.oscL) oscData.oscL.stop();
+          if (oscData.oscR) oscData.oscR.stop();
+          if (oscData.lfo) oscData.lfo.stop();
+        } catch {
+          // Ignore - might already be stopped
+        }
+
+        // Calculate remaining time for this clip
+        const clipEnd = clip.startTime + clip.duration;
+        const elapsedInClip = currentTime - clip.startTime;
+        const remainingDuration = clipEnd - currentTime;
+
+        if (remainingDuration > 0 && currentTime >= clip.startTime) {
+          // Calculate current frequency values if ramping
+          const progress = elapsedInClip / clip.duration;
+          const rampEnabled = section.rampEnabled ?? (section.endCarrier !== undefined || section.endBeat !== undefined);
+          
+          const currentCarrier = rampEnabled && section.endCarrier !== undefined
+            ? section.carrier + (section.endCarrier - section.carrier) * progress
+            : section.carrier;
+
+          const currentBeat = rampEnabled && section.endBeat !== undefined
+            ? section.beat + (section.endBeat - section.beat) * progress
+            : section.beat;
+
+          const adjustedSection: Section = {
+            ...section,
+            carrier: currentCarrier,
+            beat: currentBeat,
+          };
+
+          // Play with new waveform
+          playTone({
+            clipId,
+            section: adjustedSection,
+            duration: remainingDuration,
+            clipWaveform: clip.waveform,
+            startOffset: 0,
+            isTest: false,
+          });
+        }
+      }
+    }
+
+    // Update previous waveform map
+    prevClipsWaveformRef.current.clear();
+    for (const clip of clips) {
+      prevClipsWaveformRef.current.set(clip.id, clip.waveform);
+    }
+  }, [clips, sections, state.playbackState, state.currentTime, playTone]);
 
   const play = useCallback(
     (fromTime: number = 0) => {

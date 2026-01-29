@@ -1,5 +1,7 @@
 // DAW Timeline Types - Multi-track arrangement
 
+import { WaveformType } from './binaural';
+
 export interface TimelineClip {
   id: string;
   sectionId: string; // References the original Section definition
@@ -7,6 +9,7 @@ export interface TimelineClip {
   startTime: number; // Start position in seconds
   duration: number; // Clip duration (can differ from original section duration)
   muted: boolean;
+  waveform: WaveformType; // Per-clip waveform type (sine, triangle, sawtooth)
   // Visual only - doesn't affect audio
   color?: string;
 }
@@ -66,7 +69,10 @@ export type ClipContextAction =
   | 'split'
   | 'trim-start'
   | 'trim-end'
-  | 'reset-duration';
+  | 'reset-duration'
+  | 'set-waveform-sine'
+  | 'set-waveform-triangle'
+  | 'set-waveform-sawtooth';
 
 export type TrackContextAction =
   | 'rename'
