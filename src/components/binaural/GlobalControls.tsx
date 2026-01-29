@@ -17,7 +17,7 @@ export function GlobalControls({
   onModeChange,
 }: GlobalControlsProps) {
   return (
-    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-6 p-3 sm:p-4 panel rounded-lg">
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-6">
       {/* Master Volume */}
       <div className="flex items-center gap-3 sm:gap-4">
         <div className="flex items-center gap-2">
