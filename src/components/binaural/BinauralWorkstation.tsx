@@ -643,12 +643,14 @@ export function BinauralWorkstation() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto p-3 md:p-6 space-y-4 md:space-y-6" ref={containerRef}>
         {/* Global Controls + Toolbar */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 md:gap-4">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-4">
-          <GlobalControls masterVolume={track.masterVolume} onVolumeChange={handleVolumeChange} isIsochronic={track.isIsochronic} onModeChange={handleModeChange} />
-        </div>
+        <div className="panel rounded-lg p-3 sm:p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 md:gap-4">
+          {/* Master Volume & Mode */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-6">
+            <GlobalControls masterVolume={track.masterVolume} onVolumeChange={handleVolumeChange} isIsochronic={track.isIsochronic} onModeChange={handleModeChange} />
+          </div>
+          
+          {/* Toolbar Buttons */}
           <div className="flex items-center gap-0.5 md:gap-1 shrink-0">
-
             {/* Selection actions */}
             <Button variant="ghost" size="sm" onClick={selectedIndices.size === track.sections.length ? handleDeselectAll : handleSelectAll} className="h-7 md:h-8 px-1.5 md:px-2 text-muted-foreground hover:text-[#000512] hover:bg-accent text-xs">
               {selectedIndices.size === track.sections.length ? <Square className="h-3.5 w-3.5 mr-0.5" /> : <CheckSquare className="h-3.5 w-3.5 mr-0.5" />}
