@@ -172,80 +172,241 @@ export function TriangleGenerator({
   const puckTopPx = currentPos.y * scaleY - puckRadiusPx;
   const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
 
-  return <div className="panel rounded-lg p-4 mb-4 overflow-hidden min-w-0">
-      <h3 className="text-xs uppercase tracking-widest font-medium mb-3 text-slate-400">
+  // Calculate grid line positions for crosshair
+  const gridLinesX = [0.25, 0.5, 0.75]; // 25%, 50%, 75% carrier
+  const gridLinesY = [0.25, 0.5, 0.75]; // pulse positions
+
+  return (
+    <div className="panel rounded-lg p-4 mb-4 overflow-hidden min-w-0">
+      <h3 className="text-xs uppercase tracking-widest font-medium mb-3 text-muted-foreground">
         Frequency Generator
       </h3>
       
-      {disabled ? <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+      {disabled ? (
+        <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
           Select a sequence to use the generator
-        </div> : <>
-          {/* Readouts */}
+        </div>
+      ) : (
+        <>
+          {/* Readouts with axis labels */}
           <div className="flex justify-between mb-3 text-xs">
-            <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] uppercase tracking-wider text-primary/60">X-Axis</span>
               <span className="text-muted-foreground">Carrier: </span>
-              <span className="font-mono text-primary">{carrier} Hz</span>
+              <span className="font-mono text-primary font-medium">{carrier} Hz</span>
             </div>
-            <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] uppercase tracking-wider text-accent/60">Y-Axis</span>
               <span className="text-muted-foreground">Pulse: </span>
-              <span className="font-mono text-accent">{pulse.toFixed(1)} Hz</span>
+              <span className="font-mono text-accent font-medium">{pulse.toFixed(1)} Hz</span>
             </div>
           </div>
 
           {/* Triangle Area */}
           <div
             ref={containerRef}
-            className="relative mx-auto select-none overflow-hidden"
+            className="relative mx-auto select-none overflow-hidden rounded-lg"
             style={{
               width: '100%',
               maxWidth: UI.width,
-              aspectRatio: `${UI.width} / ${UI.height}`
+              aspectRatio: `${UI.width} / ${UI.height}`,
+              background: 'hsl(var(--void))',
             }}
           >
-            {/* Triangle Background */}
-            <div className="absolute inset-0" style={{
-          clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)',
-          background: 'linear-gradient(180deg, hsl(var(--primary)/0.2) 0%, hsl(var(--accent)/0.2) 100%)'
-        }} />
+            {/* Triangle Background with gradient */}
+            <div 
+              className="absolute inset-0" 
+              style={{
+                clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)',
+                background: `
+                  radial-gradient(ellipse at 50% 80%, hsl(var(--accent) / 0.15) 0%, transparent 60%),
+                  radial-gradient(ellipse at 50% 20%, hsl(var(--primary) / 0.2) 0%, transparent 50%),
+                  linear-gradient(180deg, hsl(var(--primary) / 0.1) 0%, hsl(var(--accent) / 0.15) 100%)
+                `
+              }} 
+            />
             
-            {/* Triangle Border */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox={`0 0 ${UI.width} ${UI.height}`}>
-              <polygon points={`${UI.width / 2},0 0,${UI.height} ${UI.width},${UI.height}`} fill="none" stroke="hsl(var(--accent))" strokeWidth="2" opacity="0.5" />
+            {/* Triangle Border - glowing */}
+            <svg 
+              className="absolute inset-0 w-full h-full pointer-events-none" 
+              viewBox={`0 0 ${UI.width} ${UI.height}`}
+            >
+              <defs>
+                <linearGradient id="triangleGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="hsl(var(--primary))" />
+                  <stop offset="100%" stopColor="hsl(var(--accent))" />
+                </linearGradient>
+                <filter id="glow">
+                  <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                  <feMerge>
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
+              </defs>
+              <polygon 
+                points={`${UI.width / 2},0 0,${UI.height} ${UI.width},${UI.height}`} 
+                fill="none" 
+                stroke="url(#triangleGradient)" 
+                strokeWidth="2" 
+                filter="url(#glow)"
+                opacity="0.7" 
+              />
             </svg>
 
-            {/* Grid lines */}
+            {/* Crosshair Grid - vertical lines (Carrier axis) */}
+            <svg 
+              className="absolute inset-0 w-full h-full pointer-events-none"
+              viewBox={`0 0 ${UI.width} ${UI.height}`}
+              style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }}
+            >
+              {/* Center vertical line - prominent */}
+              <line 
+                x1={UI.width / 2} y1={0} 
+                x2={UI.width / 2} y2={UI.height} 
+                stroke="hsl(var(--primary))" 
+                strokeWidth="1" 
+                opacity="0.4"
+              />
+              
+              {/* Vertical grid lines */}
+              {gridLinesX.filter(p => p !== 0.5).map((percent) => (
+                <line
+                  key={`v-${percent}`}
+                  x1={UI.width * percent}
+                  y1={0}
+                  x2={UI.width * percent}
+                  y2={UI.height}
+                  stroke="hsl(var(--muted-foreground))"
+                  strokeWidth="0.5"
+                  opacity="0.25"
+                  strokeDasharray="4 4"
+                />
+              ))}
+              
+              {/* Horizontal grid lines (Pulse axis) */}
+              {gridLinesY.map((percent) => (
+                <line
+                  key={`h-${percent}`}
+                  x1={0}
+                  y1={UI.height * percent}
+                  x2={UI.width}
+                  y2={UI.height * percent}
+                  stroke={percent === 0.5 ? "hsl(var(--accent))" : "hsl(var(--muted-foreground))"}
+                  strokeWidth={percent === 0.5 ? "1" : "0.5"}
+                  opacity={percent === 0.5 ? "0.4" : "0.25"}
+                  strokeDasharray={percent === 0.5 ? "none" : "4 4"}
+                />
+              ))}
+            </svg>
+
+            {/* Axis Labels */}
             <div className="absolute inset-0 pointer-events-none">
-              <div className="absolute left-1/2 top-0 bottom-0 w-px bg-border/30" />
-              <div className="absolute left-0 right-0 top-1/2 h-px bg-border/30" />
+              {/* Carrier axis label */}
+              <div 
+                className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full pt-1"
+                style={{ fontSize: '8px' }}
+              >
+                <span className="text-primary/50 uppercase tracking-widest">← Low Hz · Carrier · High Hz →</span>
+              </div>
+              
+              {/* Pulse axis label */}
+              <div 
+                className="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2 pr-1"
+                style={{ 
+                  fontSize: '8px',
+                  writingMode: 'vertical-rl',
+                  transform: 'rotate(180deg) translateX(100%) translateY(-50%)',
+                }}
+              >
+                <span className="text-accent/50 uppercase tracking-widest">← Slow · Pulse · Fast →</span>
+              </div>
             </div>
 
-            {/* Labels - pinned to triangle corners/center (scales with container) */}
-            <div className="absolute inset-0 pointer-events-none text-[10px] text-muted-foreground uppercase tracking-wider">
-              <span className="absolute top-1 left-1/2 -translate-x-1/2 whitespace-nowrap">Focus</span>
-              <span className="absolute bottom-1 left-2 whitespace-nowrap">Ground</span>
-              <span className="absolute bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap">Deep</span>
-              <span className="absolute bottom-1 right-2 whitespace-nowrap">Mind</span>
+            {/* Corner labels */}
+            <div className="absolute inset-0 pointer-events-none text-[9px] font-medium uppercase tracking-wider">
+              <span className="absolute top-2 left-1/2 -translate-x-1/2 text-primary/80 bg-void/50 px-1.5 py-0.5 rounded">
+                Focus
+              </span>
+              <span className="absolute bottom-2 left-3 text-muted-foreground/80 bg-void/50 px-1.5 py-0.5 rounded">
+                Ground
+              </span>
+              <span className="absolute bottom-2 left-1/2 -translate-x-1/2 text-accent/80 bg-void/50 px-1.5 py-0.5 rounded">
+                Deep
+              </span>
+              <span className="absolute bottom-2 right-3 text-muted-foreground/80 bg-void/50 px-1.5 py-0.5 rounded">
+                Mind
+              </span>
             </div>
+
+            {/* Crosshair cursor lines following puck */}
+            <svg 
+              className="absolute inset-0 w-full h-full pointer-events-none"
+              viewBox={`0 0 ${UI.width} ${UI.height}`}
+            >
+              {/* Vertical line through puck */}
+              <line
+                x1={currentPos.x}
+                y1={0}
+                x2={currentPos.x}
+                y2={UI.height}
+                stroke="hsl(var(--primary))"
+                strokeWidth="1"
+                opacity="0.3"
+                strokeDasharray="2 3"
+              />
+              {/* Horizontal line through puck */}
+              <line
+                x1={0}
+                y1={currentPos.y}
+                x2={UI.width}
+                y2={currentPos.y}
+                stroke="hsl(var(--accent))"
+                strokeWidth="1"
+                opacity="0.3"
+                strokeDasharray="2 3"
+              />
+            </svg>
 
             {/* Canvas for wave effect */}
             <canvas
               ref={canvasRef}
-              className="absolute inset-0 w-full h-full pointer-events-none opacity-30"
+              className="absolute inset-0 w-full h-full pointer-events-none opacity-20"
               width={Math.max(1, Math.round((size.width || UI.width) * dpr))}
               height={Math.max(1, Math.round((size.height || UI.height) * dpr))}
             />
 
             {/* Puck */}
-            <div ref={puckRef} onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} className={`absolute rounded-full cursor-grab transition-shadow ${isDragging ? 'cursor-grabbing' : ''}`} style={{
-           width: puckSizePx,
-           height: puckSizePx,
-           left: puckLeftPx,
-           top: puckTopPx,
-          background: 'radial-gradient(circle at 30% 30%, hsl(var(--foreground)), hsl(var(--muted)))',
-          boxShadow: `0 0 15px white, 0 0 ${20 + intensity * 30}px ${color}`,
-          zIndex: 10
-        }} />
+            <div 
+              ref={puckRef} 
+              onMouseDown={handleMouseDown} 
+              onTouchStart={handleTouchStart} 
+              className={`absolute rounded-full cursor-grab transition-all duration-75 ${isDragging ? 'cursor-grabbing scale-110' : 'hover:scale-105'}`} 
+              style={{
+                width: puckSizePx,
+                height: puckSizePx,
+                left: puckLeftPx,
+                top: puckTopPx,
+                background: `radial-gradient(circle at 30% 30%, hsl(var(--foreground)), hsl(var(--muted)))`,
+                boxShadow: `
+                  0 0 10px white,
+                  0 0 ${15 + intensity * 25}px ${color},
+                  inset 0 0 4px rgba(255,255,255,0.3)
+                `,
+                border: '1px solid rgba(255,255,255,0.2)',
+                zIndex: 10
+              }} 
+            />
           </div>
-        </>}
-    </div>;
+          
+          {/* Scale indicators below */}
+          <div className="flex justify-between mt-2 text-[9px] text-muted-foreground/60 font-mono">
+            <span>{AUDIO_CONFIG.minCarrier}Hz</span>
+            <span className="text-primary/60">{Math.round((AUDIO_CONFIG.maxCarrier + AUDIO_CONFIG.minCarrier) / 2)}Hz</span>
+            <span>{AUDIO_CONFIG.maxCarrier}Hz</span>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }

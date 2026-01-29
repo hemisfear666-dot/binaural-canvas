@@ -111,12 +111,13 @@ export function useAudioEngine(
     testOscillatorRef.current = null;
   }, [cleanupNodes]);
 
-  // Softening filter for harsh waveforms
-  const createLowPassFilter = useCallback((ctx: AudioContext): BiquadFilterNode => {
+  // Softening filter for harsh waveforms - higher cutoff for more noticeable harmonic content
+  const createLowPassFilter = useCallback((ctx: AudioContext, waveformType: WaveformType): BiquadFilterNode => {
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 300;
-    filter.Q.value = 0.7;
+    // Triangle is softer, allow more harmonics; Sawtooth is brighter, filter more
+    filter.frequency.value = waveformType === 'triangle' ? 800 : 500;
+    filter.Q.value = 1.2; // Slight resonance for character
     return filter;
   }, []);
 
@@ -204,7 +205,7 @@ export function useAudioEngine(
         lfoGain.connect(amp.gain);
 
         if (needsFilter) {
-          const filter = createLowPassFilter(ctx);
+          const filter = createLowPassFilter(ctx, waveform);
           osc.connect(filter);
           filter.connect(amp);
           nodesToTrack.push(filter);
@@ -249,8 +250,8 @@ export function useAudioEngine(
         }
 
         if (needsFilter) {
-          const filterL = createLowPassFilter(ctx);
-          const filterR = createLowPassFilter(ctx);
+          const filterL = createLowPassFilter(ctx, waveform);
+          const filterR = createLowPassFilter(ctx, waveform);
           oscL.connect(filterL);
           oscR.connect(filterR);
           filterL.connect(panL);
@@ -582,7 +583,7 @@ export function useAudioEngine(
           lfoGain.connect(amp.gain);
 
           if (needsFilter) {
-            const filter = createLowPassFilter(ctx);
+            const filter = createLowPassFilter(ctx, waveformRef.current);
             osc.connect(filter);
             filter.connect(amp);
             testNodesRef.current.push(filter);
@@ -617,8 +618,8 @@ export function useAudioEngine(
           oscR.frequency.setValueAtTime(rightFreq, now);
 
           if (needsFilter) {
-            const filterL = createLowPassFilter(ctx);
-            const filterR = createLowPassFilter(ctx);
+            const filterL = createLowPassFilter(ctx, waveformRef.current);
+            const filterR = createLowPassFilter(ctx, waveformRef.current);
             oscL.connect(filterL);
             oscR.connect(filterR);
             filterL.connect(panL);
@@ -694,7 +695,7 @@ export function useAudioEngine(
           lfoGain.connect(amp.gain);
 
           if (needsFilter) {
-            const filter = createLowPassFilter(ctx);
+            const filter = createLowPassFilter(ctx, waveform);
             osc.connect(filter);
             filter.connect(amp);
             testNodesRef.current.push(filter);
@@ -729,8 +730,8 @@ export function useAudioEngine(
           oscR.frequency.setValueAtTime(rightFreq, now);
 
           if (needsFilter) {
-            const filterL = createLowPassFilter(ctx);
-            const filterR = createLowPassFilter(ctx);
+            const filterL = createLowPassFilter(ctx, waveform);
+            const filterR = createLowPassFilter(ctx, waveform);
             oscL.connect(filterL);
             oscR.connect(filterR);
             filterL.connect(panL);
