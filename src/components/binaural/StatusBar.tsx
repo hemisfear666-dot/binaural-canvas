@@ -8,7 +8,7 @@ interface StatusBarProps {
   isIsochronic: boolean;
 }
 
-const APP_VERSION = '0.85';
+const APP_VERSION = '0.9';
 
 export function StatusBar({ status, playbackState, currentTime, isIsochronic }: StatusBarProps) {
   return (
