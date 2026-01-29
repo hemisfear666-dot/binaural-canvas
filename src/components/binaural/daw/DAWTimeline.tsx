@@ -66,6 +66,7 @@ const initializeFromSections = (sections: Section[]): { tracks: TimelineTrack[];
       startTime: currentTime,
       duration: section.duration,
       muted: section.muted,
+      waveform: 'sine', // Default waveform
     };
     currentTime += section.duration;
     return clip;
@@ -325,6 +326,7 @@ export const DAWTimeline = memo(function DAWTimeline({
         startTime: time,
         duration: section.duration,
         muted: section.muted,
+        waveform: 'sine', // Default waveform
       };
       
       setClips(prev => [...prev, newClip]);
@@ -382,6 +384,7 @@ export const DAWTimeline = memo(function DAWTimeline({
         startTime: 0,
         duration: section.duration,
         muted: section.muted,
+        waveform: 'sine', // Default waveform
       };
       
       setTracks(prev => [...prev, newTrack]);
@@ -485,6 +488,24 @@ export const DAWTimeline = memo(function DAWTimeline({
           c.id === clipId ? { ...c, muted: false } : c
         ));
         toast.success('Clip unmuted');
+        break;
+      case 'set-waveform-sine':
+        setClips(prev => prev.map(c => 
+          c.id === clipId ? { ...c, waveform: 'sine' } : c
+        ));
+        toast.success('Waveform set to Sine');
+        break;
+      case 'set-waveform-triangle':
+        setClips(prev => prev.map(c => 
+          c.id === clipId ? { ...c, waveform: 'triangle' } : c
+        ));
+        toast.success('Waveform set to Triangle');
+        break;
+      case 'set-waveform-sawtooth':
+        setClips(prev => prev.map(c => 
+          c.id === clipId ? { ...c, waveform: 'sawtooth' } : c
+        ));
+        toast.success('Waveform set to Sawtooth');
         break;
       case 'duplicate':
         const newClip: TimelineClip = {
@@ -689,6 +710,7 @@ export const DAWTimeline = memo(function DAWTimeline({
           y={contextMenu.y}
           clipId={contextMenu.clipId}
           isMuted={clips.find(c => c.id === contextMenu.clipId)?.muted || false}
+          currentWaveform={clips.find(c => c.id === contextMenu.clipId)?.waveform || 'sine'}
           onAction={handleContextMenuAction}
           onClose={handleCloseContextMenu}
         />

@@ -1,6 +1,6 @@
 // Playback scheduling types - derived from timeline clips
 
-import { Section } from './binaural';
+import { Section, WaveformType } from './binaural';
 import { TimelineClip, TimelineTrack } from './daw';
 
 /**
@@ -14,6 +14,7 @@ export interface ScheduledEvent {
   startTime: number;
   duration: number;
   muted: boolean;
+  waveform: WaveformType; // Per-clip waveform
   // Resolved section data
   section: Section;
 }
@@ -56,6 +57,7 @@ export function generatePlaybackSchedule(
       startTime: clip.startTime,
       duration: clip.duration,
       muted: false,
+      waveform: clip.waveform,
       section,
     });
   }
