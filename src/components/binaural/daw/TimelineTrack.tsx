@@ -233,10 +233,14 @@ export const TimelineTrackRow = memo(function TimelineTrackRow({
         }}
       >
         {/* Grid lines */}
-        {gridLines.map((time) => (
+        {gridLines.map((time, idx) => (
           <div
             key={time}
-            className="absolute top-0 bottom-0 w-px bg-border/30"
+            className={`absolute top-0 bottom-0 ${
+              idx % 4 === 0 
+                ? 'w-px bg-muted-foreground/40' 
+                : 'w-px bg-muted-foreground/20'
+            }`}
             style={{ left: time * pixelsPerSecond }}
           />
         ))}
