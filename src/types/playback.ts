@@ -17,6 +17,10 @@ export interface ScheduledEvent {
   waveform: WaveformType; // Per-clip waveform
   // Resolved section data
   section: Section;
+  // Per-clip ramp automation (overrides section ramp if set)
+  rampEnabled?: boolean;
+  endCarrier?: number;
+  endBeat?: number;
 }
 
 /**
@@ -59,6 +63,10 @@ export function generatePlaybackSchedule(
       muted: false,
       waveform: clip.waveform,
       section,
+      // Pass clip-level ramp data
+      rampEnabled: clip.rampEnabled,
+      endCarrier: clip.endCarrier,
+      endBeat: clip.endBeat,
     });
   }
   
