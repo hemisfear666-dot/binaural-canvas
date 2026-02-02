@@ -189,30 +189,32 @@ export function ImportExportCompact({
         </Popover>
       </div>
 
-      {/* Presets section - minimal */}
+      {/* Presets section */}
       {onImportPresets && (
-        <div className="flex items-center justify-between pt-2 border-t border-border/30">
+        <div className="pt-2 border-t border-border/30 space-y-1.5">
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
             <Star className="h-2.5 w-2.5" />
-            Presets ({customPresets?.length ?? 0})
+            Custom Presets ({customPresets?.length ?? 0})
           </span>
-          <div className="flex gap-1">
+          <div className="flex gap-1.5">
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => presetsInputRef.current?.click()}
-              className="h-5 px-1.5 text-[10px]"
+              className="flex-1 h-6 text-[10px] border-border hover:border-primary"
             >
-              <Upload className="h-2.5 w-2.5" />
+              <Upload className="h-2.5 w-2.5 mr-1" />
+              Import
             </Button>
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={handleExportPresetsOnly}
               disabled={!customPresets || customPresets.length === 0}
-              className="h-5 px-1.5 text-[10px] disabled:opacity-30"
+              className="flex-1 h-6 text-[10px] border-accent/50 text-accent hover:border-accent disabled:opacity-30"
             >
-              <Download className="h-2.5 w-2.5" />
+              <Download className="h-2.5 w-2.5 mr-1" />
+              Export
             </Button>
           </div>
         </div>
