@@ -12,6 +12,10 @@ export interface TimelineClip {
   waveform: WaveformType; // Per-clip waveform type (sine, triangle, sawtooth)
   // Visual only - doesn't affect audio
   color?: string;
+  // Frequency ramping - per-clip automation
+  rampEnabled?: boolean;
+  endCarrier?: number; // Target carrier frequency at end of clip
+  endBeat?: number; // Target beat/pulse frequency at end of clip
 }
 
 export interface TimelineTrack {
@@ -72,7 +76,8 @@ export type ClipContextAction =
   | 'reset-duration'
   | 'set-waveform-sine'
   | 'set-waveform-triangle'
-  | 'set-waveform-sawtooth';
+  | 'set-waveform-sawtooth'
+  | 'ramp-to';
 
 export type TrackContextAction =
   | 'rename'

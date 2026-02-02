@@ -10,7 +10,8 @@ import {
   ChevronRight,
   ChevronDown,
   AudioWaveform,
-  Check
+  Check,
+  TrendingUp
 } from 'lucide-react';
 import { ClipContextAction } from '@/types/daw';
 import { WaveformType } from '@/types/binaural';
@@ -21,6 +22,7 @@ interface TimelineContextMenuProps {
   clipId: string;
   isMuted: boolean;
   currentWaveform: WaveformType;
+  hasRamp: boolean;
   onAction: (action: ClipContextAction, clipId: string) => void;
   onClose: () => void;
 }
@@ -31,6 +33,7 @@ export function TimelineContextMenu({
   clipId,
   isMuted,
   currentWaveform,
+  hasRamp,
   onAction,
   onClose,
 }: TimelineContextMenuProps) {
@@ -78,6 +81,7 @@ export function TimelineContextMenu({
     shortcut?: string;
     danger?: boolean;
     hasSubmenu?: boolean;
+    highlight?: boolean;
     onHover?: () => void;
   }> = [
     {
@@ -91,6 +95,13 @@ export function TimelineContextMenu({
       icon: <AudioWaveform className="h-3.5 w-3.5" />,
       hasSubmenu: true,
       onHover: () => setShowWaveformSubmenu(true),
+    },
+    {
+      action: 'ramp-to',
+      label: hasRamp ? 'Edit Ramp' : 'Ramp To...',
+      icon: <TrendingUp className="h-3.5 w-3.5" />,
+      shortcut: 'R',
+      highlight: hasRamp,
     },
     {
       action: 'duplicate',
@@ -148,7 +159,9 @@ export function TimelineContextMenu({
                 transition-colors
                 ${item.danger 
                   ? 'text-destructive hover:bg-destructive/10' 
-                  : 'text-foreground hover:bg-muted'
+                  : item.highlight
+                    ? 'text-accent hover:bg-accent/10'
+                    : 'text-foreground hover:bg-muted'
                 }
                 ${index === menuItems.length - 1 ? 'border-t border-border mt-1 pt-2' : ''}
               `}

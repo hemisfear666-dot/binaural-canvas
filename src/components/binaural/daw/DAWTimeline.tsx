@@ -16,6 +16,7 @@ import { Section, LoopMode } from '@/types/binaural';
 import { TimelineTrackRow } from './TimelineTrack';
 import { TimelineContextMenu } from './TimelineContextMenu';
 import { TimelineFooter } from './TimelineFooter';
+import { RampEditor } from './RampEditor';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
@@ -119,6 +120,9 @@ export const DAWTimeline = memo(function DAWTimeline({
     y: number;
     clipId: string;
   } | null>(null);
+
+  // Ramp editor state
+  const [rampEditorClipId, setRampEditorClipId] = useState<string | null>(null);
 
   // Drag state for drop zones
   const [dragOverTrackId, setDragOverTrackId] = useState<string | null>(null);
@@ -507,6 +511,9 @@ export const DAWTimeline = memo(function DAWTimeline({
         ));
         toast.success('Waveform set to Sawtooth');
         break;
+      case 'ramp-to':
+        setRampEditorClipId(clipId);
+        break;
       case 'duplicate':
         const newClip: TimelineClip = {
           ...clip,
@@ -546,6 +553,13 @@ export const DAWTimeline = memo(function DAWTimeline({
 
   const handleCloseContextMenu = useCallback(() => {
     setContextMenu(null);
+  }, []);
+
+  const handleRampSave = useCallback((clipId: string, updates: Partial<TimelineClip>) => {
+    setClips(prev => prev.map(c => 
+      c.id === clipId ? { ...c, ...updates } : c
+    ));
+    toast.success(updates.rampEnabled ? 'Ramp applied' : 'Ramp removed');
   }, []);
 
   return (
@@ -711,10 +725,26 @@ export const DAWTimeline = memo(function DAWTimeline({
           clipId={contextMenu.clipId}
           isMuted={clips.find(c => c.id === contextMenu.clipId)?.muted || false}
           currentWaveform={clips.find(c => c.id === contextMenu.clipId)?.waveform || 'sine'}
+          hasRamp={clips.find(c => c.id === contextMenu.clipId)?.rampEnabled || false}
           onAction={handleContextMenuAction}
           onClose={handleCloseContextMenu}
         />
       )}
+
+      {/* Ramp Editor */}
+      {rampEditorClipId && (() => {
+        const clip = clips.find(c => c.id === rampEditorClipId);
+        const section = clip ? sections.find(s => s.id === clip.sectionId) : undefined;
+        if (!clip || !section) return null;
+        return (
+          <RampEditor
+            clip={clip}
+            section={section}
+            onSave={(updates) => handleRampSave(rampEditorClipId, updates)}
+            onClose={() => setRampEditorClipId(null)}
+          />
+        );
+      })()}
     </div>
   );
 });
