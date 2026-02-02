@@ -119,52 +119,24 @@ export function ImportExportCompact({
     [onImportPresets]
   );
 
+  const presetCount = customPresets?.length ?? 0;
+
   return (
-    <div className="panel rounded-lg p-3 space-y-2">
-      <h3 className="text-xs uppercase tracking-widest font-medium text-slate-400 mb-2">
-        Project
-      </h3>
-
-      {/* Title Input */}
-      <Input
-        value={track.title}
-        onChange={(e) => onTitleChange(e.target.value)}
-        className="h-8 bg-void border-border text-sm font-medium"
-        placeholder="Untitled Track"
-      />
-
-      {/* Hidden file inputs */}
-      <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportFile} className="hidden" />
-      <input ref={presetsInputRef} type="file" accept=".json" onChange={handleImportPresetsOnly} className="hidden" />
-
-      {/* Action buttons */}
-      <div className="flex gap-1.5">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => fileInputRef.current?.click()}
-          className="flex-1 h-7 text-xs border-border hover:border-primary"
-        >
-          <Upload className="h-3 w-3 mr-1" />
-          Import
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleExportFile}
-          className="flex-1 h-7 text-xs border-accent/50 text-accent hover:border-accent"
-        >
-          <Download className="h-3 w-3 mr-1" />
-          Export
-        </Button>
-        
-        {/* JSON Preview Popover */}
+    <div className="panel rounded-lg p-3 space-y-3">
+      {/* Header row: Title + JSON button */}
+      <div className="flex items-center gap-2">
+        <Input
+          value={track.title}
+          onChange={(e) => onTitleChange(e.target.value)}
+          className="h-7 flex-1 bg-void border-border text-sm font-medium"
+          placeholder="Untitled Track"
+        />
         <Popover>
           <PopoverTrigger asChild>
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-primary shrink-0"
               title="View JSON"
             >
               <FileJson className="h-3.5 w-3.5" />
@@ -179,7 +151,7 @@ export function ImportExportCompact({
                 onClick={handleCopy}
                 className="h-6 text-xs"
               >
-                {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                {copied ? <Check className="h-3 w-3 text-accent" /> : <Copy className="h-3 w-3" />}
               </Button>
             </div>
             <pre className="text-[10px] bg-void p-2 rounded max-h-48 overflow-auto font-mono">
@@ -189,36 +161,60 @@ export function ImportExportCompact({
         </Popover>
       </div>
 
-      {/* Presets section */}
-      {onImportPresets && (
-        <div className="pt-2 border-t border-border/30 space-y-1.5">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-            <Star className="h-2.5 w-2.5" />
-            Custom Presets ({customPresets?.length ?? 0})
-          </span>
-          <div className="flex gap-1.5">
+      {/* Hidden file inputs */}
+      <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportFile} className="hidden" />
+      <input ref={presetsInputRef} type="file" accept=".json" onChange={handleImportPresetsOnly} className="hidden" />
+
+      {/* Unified action grid */}
+      <div className="grid grid-cols-2 gap-2">
+        {/* Track actions */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fileInputRef.current?.click()}
+          className="h-8 text-xs border-border hover:border-primary hover:bg-primary/5"
+        >
+          <Upload className="h-3 w-3 mr-1.5" />
+          Import Project
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportFile}
+          className="h-8 text-xs border-accent/50 text-accent hover:border-accent hover:bg-accent/5"
+        >
+          <Download className="h-3 w-3 mr-1.5" />
+          Export Project
+        </Button>
+
+        {/* Preset actions */}
+        {onImportPresets && (
+          <>
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={() => presetsInputRef.current?.click()}
-              className="flex-1 h-6 text-[10px] border-border hover:border-primary"
+              className="h-7 text-[11px] text-muted-foreground hover:text-foreground"
             >
-              <Upload className="h-2.5 w-2.5 mr-1" />
-              Import
+              <Star className="h-3 w-3 mr-1.5 opacity-60" />
+              Import Presets
             </Button>
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={handleExportPresetsOnly}
-              disabled={!customPresets || customPresets.length === 0}
-              className="flex-1 h-6 text-[10px] border-accent/50 text-accent hover:border-accent disabled:opacity-30"
+              disabled={presetCount === 0}
+              className="h-7 text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-30"
             >
-              <Download className="h-2.5 w-2.5 mr-1" />
-              Export
+              <Star className="h-3 w-3 mr-1.5 opacity-60" />
+              Export Presets
+              {presetCount > 0 && (
+                <span className="ml-1.5 text-[10px] opacity-60">({presetCount})</span>
+              )}
             </Button>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
