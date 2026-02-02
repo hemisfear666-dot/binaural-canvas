@@ -134,9 +134,11 @@ export const DAWTimeline = memo(function DAWTimeline({
     const { tracks: initialTracks, clips: initialClips } = initializeFromSections(sections);
     setTracks(initialTracks);
     setClips(initialClips);
+    // Immediately notify parent
+    onClipsChange?.(initialClips, initialTracks);
   }, []); // Only on mount
 
-  // Notify parent when clips or tracks change
+  // Notify parent when clips or tracks change (after initial load)
   useEffect(() => {
     onClipsChange?.(clips, tracks);
   }, [clips, tracks, onClipsChange]);

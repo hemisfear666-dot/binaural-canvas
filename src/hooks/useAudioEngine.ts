@@ -204,7 +204,7 @@ export function useAudioEngine(
         const osc = ctx.createOscillator();
         osc.type = clipWaveform;
         osc.frequency.setValueAtTime(section.carrier, now);
-        if (rampEnabled && section.endCarrier !== undefined && section.endCarrier !== section.carrier) {
+        if (rampEnabled && finalCarrier !== section.carrier) {
           osc.frequency.linearRampToValueAtTime(finalCarrier, endTime);
         }
 
@@ -213,7 +213,7 @@ export function useAudioEngine(
 
         const lfo = ctx.createOscillator();
         lfo.frequency.setValueAtTime(section.beat, now);
-        if (rampEnabled && section.endBeat !== undefined && section.endBeat !== section.beat) {
+        if (rampEnabled && finalBeat !== section.beat) {
           lfo.frequency.linearRampToValueAtTime(finalBeat, endTime);
         }
 
@@ -261,7 +261,7 @@ export function useAudioEngine(
         oscL.frequency.setValueAtTime(leftFreqStart, now);
         oscR.frequency.setValueAtTime(rightFreqStart, now);
 
-        if (rampEnabled && ((section.endCarrier !== undefined && section.endCarrier !== section.carrier) || (section.endBeat !== undefined && section.endBeat !== section.beat))) {
+        if (rampEnabled && (finalCarrier !== section.carrier || finalBeat !== section.beat)) {
           const leftFreqEnd = finalCarrier - finalBeat / 2;
           const rightFreqEnd = finalCarrier + finalBeat / 2;
           oscL.frequency.linearRampToValueAtTime(leftFreqEnd, endTime);
