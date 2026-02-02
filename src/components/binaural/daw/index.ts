@@ -3,3 +3,4 @@ export { TimelineTrackRow } from './TimelineTrack';
 export { TimelineClipComponent } from './TimelineClip';
 export { TimelineContextMenu } from './TimelineContextMenu';
 export { TimelineFooter } from './TimelineFooter';
+export { RampEditor } from './RampEditor';

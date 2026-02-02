@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback, useEffect, memo } from 'react';
 import { TimelineClip as TimelineClipType } from '@/types/daw';
 import { Section } from '@/types/binaural';
-import { VolumeX } from 'lucide-react';
+import { VolumeX, TrendingUp } from 'lucide-react';
 
 interface TimelineClipProps {
   clip: TimelineClipType;
@@ -173,14 +173,22 @@ export const TimelineClipComponent = memo(function TimelineClipComponent({
         <div className="relative z-10 h-full flex flex-col justify-between">
           <div className="flex items-center gap-1">
             {clip.muted && <VolumeX className="h-3 w-3 text-white/70" />}
+            {clip.rampEnabled && <TrendingUp className="h-3 w-3 text-accent" />}
             <span className="text-[10px] font-medium text-white truncate">
               {displayName}
             </span>
           </div>
           {width > 60 && (
-            <span className="text-[9px] font-mono text-white/70 px-1 py-0.5 rounded bg-black/20 w-fit">
-              {beatHz}Hz
-            </span>
+            <div className="flex items-center gap-1">
+              <span className="text-[9px] font-mono text-white/70 px-1 py-0.5 rounded bg-black/20 w-fit">
+                {beatHz}Hz
+              </span>
+              {clip.rampEnabled && clip.endBeat && (
+                <span className="text-[9px] font-mono text-accent/80 px-1 py-0.5 rounded bg-black/20 w-fit">
+                  →{clip.endBeat}Hz
+                </span>
+              )}
+            </div>
           )}
         </div>
       </div>
