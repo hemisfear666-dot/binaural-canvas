@@ -14,24 +14,47 @@ interface ShortcutItem {
   description: string;
 }
 
-const shortcuts: ShortcutItem[] = [
+// Split shortcuts into two columns for better layout
+const shortcutsLeft: ShortcutItem[] = [
   { keys: ['Space'], description: 'Play / Pause' },
   { keys: ['S'], description: 'Stop & Reset' },
   { keys: ['L'], description: 'Cycle Loop Mode' },
-  { keys: ['←'], description: 'Skip back 5 seconds' },
-  { keys: ['→'], description: 'Skip forward 5 seconds' },
-  { keys: ['Shift', '←'], description: 'Previous section' },
-  { keys: ['Shift', '→'], description: 'Next section' },
-  { keys: ['Ctrl/⌘', 'Z'], description: 'Undo' },
-  { keys: ['Ctrl/⌘', 'Shift', 'Z'], description: 'Redo' },
-  { keys: ['Ctrl/⌘', 'A'], description: 'Select all sections' },
-  { keys: ['Delete'], description: 'Delete selected sections' },
-  { keys: ['Ctrl/⌘', 'D'], description: 'Duplicate selected section' },
-  { keys: ['Escape'], description: 'Deselect all' },
-  { keys: ['+'], description: 'Zoom in timeline' },
-  { keys: ['-'], description: 'Zoom out timeline' },
+  { keys: ['←'], description: 'Skip back 5s' },
+  { keys: ['→'], description: 'Skip forward 5s' },
+  { keys: ['⇧', '←'], description: 'Previous section' },
+  { keys: ['⇧', '→'], description: 'Next section' },
   { keys: ['?'], description: 'Show this help' },
 ];
+
+const shortcutsRight: ShortcutItem[] = [
+  { keys: ['⌘', 'Z'], description: 'Undo' },
+  { keys: ['⌘', '⇧', 'Z'], description: 'Redo' },
+  { keys: ['⌘', 'A'], description: 'Select all' },
+  { keys: ['⌘', 'D'], description: 'Duplicate' },
+  { keys: ['Del'], description: 'Delete selected' },
+  { keys: ['Esc'], description: 'Deselect all' },
+  { keys: ['+'], description: 'Zoom in' },
+  { keys: ['−'], description: 'Zoom out' },
+];
+
+// Shortcut row component for cleaner rendering
+function ShortcutRow({ shortcut }: { shortcut: ShortcutItem }) {
+  return (
+    <div className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-accent/5 transition-colors">
+      <span className="text-xs text-foreground/70">{shortcut.description}</span>
+      <div className="flex items-center gap-0.5">
+        {shortcut.keys.map((key, j) => (
+          <kbd
+            key={j}
+            className="min-w-[22px] h-5 px-1.5 text-[10px] font-mono bg-void/80 border border-accent/20 rounded text-accent flex items-center justify-center"
+          >
+            {key}
+          </kbd>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 interface KeyboardShortcutsProps {
   isOpen: boolean;
@@ -220,36 +243,28 @@ export function KeyboardShortcuts({
           <span className="hidden md:inline text-xs">Shortcuts</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="bg-void-surface border-accent/30 max-w-md">
+      <DialogContent className="bg-void/95 backdrop-blur-xl border-accent/20 max-w-2xl shadow-2xl shadow-accent/10">
         <DialogHeader>
           <DialogTitle className="text-foreground flex items-center gap-2">
             <Keyboard className="h-5 w-5 text-accent" />
             Keyboard Shortcuts
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-2 mt-4">
-          {shortcuts.map((shortcut, i) => (
-            <div
-              key={i}
-              className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-accent/5 transition-colors"
-            >
-              <span className="text-sm text-foreground/80">
-                {shortcut.description}
-              </span>
-              <div className="flex items-center gap-1">
-                {shortcut.keys.map((key, j) => (
-                  <span key={j}>
-                    <kbd className="px-2 py-1 text-xs font-mono bg-void border border-accent/30 rounded text-accent">
-                      {key}
-                    </kbd>
-                    {j < shortcut.keys.length - 1 && (
-                      <span className="text-muted-foreground mx-1">+</span>
-                    )}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
+        <div className="grid grid-cols-2 gap-6 mt-4">
+          {/* Left column - Playback */}
+          <div className="space-y-1">
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 mb-2 block">Playback</span>
+            {shortcutsLeft.map((shortcut, i) => (
+              <ShortcutRow key={i} shortcut={shortcut} />
+            ))}
+          </div>
+          {/* Right column - Editing */}
+          <div className="space-y-1">
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 mb-2 block">Editing</span>
+            {shortcutsRight.map((shortcut, i) => (
+              <ShortcutRow key={i} shortcut={shortcut} />
+            ))}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
