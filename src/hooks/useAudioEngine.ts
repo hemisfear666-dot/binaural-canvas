@@ -121,7 +121,13 @@ export function useAudioEngine(
     return filter;
   }, []);
 
-  const getRampEnabled = useCallback((section: Section) => {
+  // Check if ramping is enabled - supports both section-level and clip-level ramp
+  const getRampEnabled = useCallback((section: Section, clipRamp?: { rampEnabled?: boolean; endCarrier?: number; endBeat?: number }) => {
+    // If clip-level ramp is explicitly set, use it
+    if (clipRamp?.rampEnabled !== undefined) {
+      return clipRamp.rampEnabled;
+    }
+    // Otherwise fall back to section-level ramp
     const hasTargets = section.endCarrier !== undefined || section.endBeat !== undefined;
     return section.rampEnabled ?? hasTargets;
   }, []);
@@ -154,17 +160,23 @@ export function useAudioEngine(
         clipWaveform: WaveformType; // Per-clip waveform
         startOffset?: number;
         isTest?: boolean;
+        // Clip-level ramp overrides
+        clipRamp?: {
+          rampEnabled?: boolean;
+          endCarrier?: number;
+          endBeat?: number;
+        };
       }
     ) => {
       if (!audioCtxRef.current || !masterGainRef.current) return;
 
       const ctx = audioCtxRef.current;
-      const { section, duration, clipId, clipWaveform } = opts;
+      const { section, duration, clipId, clipWaveform, clipRamp } = opts;
       const startOffset = opts.startOffset ?? 0;
       const now = ctx.currentTime + startOffset;
       const endTime = now + duration;
 
-      const rampEnabled = getRampEnabled(section);
+      const rampEnabled = getRampEnabled(section, clipRamp);
       const needsFilter = clipWaveform !== 'sine';
 
       const sectionGain = ctx.createGain();
@@ -180,8 +192,13 @@ export function useAudioEngine(
         });
       }
 
-      const finalCarrier = rampEnabled ? (section.endCarrier ?? section.carrier) : section.carrier;
-      const finalBeat = rampEnabled ? (section.endBeat ?? section.beat) : section.beat;
+      // Use clip-level ramp targets if available, otherwise fall back to section-level
+      const finalCarrier = rampEnabled 
+        ? (clipRamp?.endCarrier ?? section.endCarrier ?? section.carrier) 
+        : section.carrier;
+      const finalBeat = rampEnabled 
+        ? (clipRamp?.endBeat ?? section.endBeat ?? section.beat) 
+        : section.beat;
 
       if (isIsochronic) {
         const osc = ctx.createOscillator();
@@ -332,17 +349,28 @@ export function useAudioEngine(
       const remainingDuration = event.duration - clipStartOffset;
       const startOffset = Math.max(0, event.startTime - fromTime);
       
-      // Calculate progress for ramping
+      // Build clip ramp data from event
+      const clipRamp = {
+        rampEnabled: event.rampEnabled,
+        endCarrier: event.endCarrier,
+        endBeat: event.endBeat,
+      };
+      
+      // Calculate progress for ramping (when seeking mid-clip)
       const progress = clipStartOffset / event.duration;
-      const rampEnabled = getRampEnabled(event.section);
+      const rampEnabled = getRampEnabled(event.section, clipRamp);
+      
+      // Determine the final targets (clip-level overrides section-level)
+      const targetCarrier = clipRamp.endCarrier ?? event.section.endCarrier ?? event.section.carrier;
+      const targetBeat = clipRamp.endBeat ?? event.section.endBeat ?? event.section.beat;
       
       // Create a modified section with current progress values
-      const currentCarrier = rampEnabled && event.section.endCarrier !== undefined
-        ? event.section.carrier + (event.section.endCarrier - event.section.carrier) * progress
+      const currentCarrier = rampEnabled
+        ? event.section.carrier + (targetCarrier - event.section.carrier) * progress
         : event.section.carrier;
 
-      const currentBeat = rampEnabled && event.section.endBeat !== undefined
-        ? event.section.beat + (event.section.endBeat - event.section.beat) * progress
+      const currentBeat = rampEnabled
+        ? event.section.beat + (targetBeat - event.section.beat) * progress
         : event.section.beat;
 
       const adjustedSection: Section = {
@@ -350,6 +378,13 @@ export function useAudioEngine(
         carrier: currentCarrier,
         beat: currentBeat,
       };
+      
+      // Adjust the clip ramp targets for remaining duration
+      const adjustedClipRamp = rampEnabled ? {
+        rampEnabled: true,
+        endCarrier: targetCarrier,
+        endBeat: targetBeat,
+      } : undefined;
 
       playTone({
         clipId: event.clipId,
@@ -358,6 +393,7 @@ export function useAudioEngine(
         clipWaveform: event.waveform,
         startOffset,
         isTest: false,
+        clipRamp: adjustedClipRamp,
       });
     }
   }, [getPlaybackSchedule, getRampEnabled, playTone]);
