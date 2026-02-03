@@ -320,6 +320,7 @@ export function useAudioMixer(
     // Recreate AudioContext if it was closed (can happen after hot reloads or browser policy changes)
     if (!ctxRef.current || ctxRef.current.state === "closed") {
       ctxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      console.log('[mixer] Created new AudioContext, state:', ctxRef.current.state);
     }
 
     const ctx = ctxRef.current;
@@ -334,6 +335,7 @@ export function useAudioMixer(
       (ambientMusicChainRef.current && ambientMusicChainRef.current.input.context !== ctx);
 
     if (hasStaleNodes) {
+      console.log('[mixer] Detected stale nodes, rebuilding all chains');
       try {
         masterOutRef.current?.disconnect();
       } catch {
@@ -353,17 +355,20 @@ export function useAudioMixer(
     // Create impulse buffer once
     if (!impulseBufferRef.current) {
       impulseBufferRef.current = createHallImpulse(ctx);
+      console.log('[mixer] Created impulse buffer');
     }
 
     // Create master output
     if (!masterOutRef.current) {
       masterOutRef.current = ctx.createGain();
       masterOutRef.current.connect(ctx.destination);
+      console.log('[mixer] Created master output, connected to destination');
     }
 
     // Create effect chains for each target
     if (!songChainRef.current) {
       songChainRef.current = createEffectChain(ctx, impulseBufferRef.current);
+      console.log('[mixer] Created song chain');
     }
     if (!noiseChainRef.current) {
       noiseChainRef.current = createEffectChain(ctx, impulseBufferRef.current);
@@ -382,9 +387,11 @@ export function useAudioMixer(
       ambienceChainRef.current.output.connect(masterOutRef.current);
       ambientMusicChainRef.current.output.connect(masterOutRef.current);
       wiredRef.current = true;
+      console.log('[mixer] Wired all chains to master output');
     }
 
     applyVolumesAndFx();
+    console.log('[mixer] init() complete, ctx.state:', ctx.state);
 
     return ctx;
   }, [applyVolumesAndFx]);
@@ -396,24 +403,36 @@ export function useAudioMixer(
   }, [init]);
 
   const getToneInput = useCallback(() => {
-    ensure();
+    // Don't call ensure() here - the caller (audio engine) is responsible for calling ensure() first
+    // Calling ensure() here causes race conditions with the audio engine's own initialization
+    if (!songChainRef.current) {
+      console.warn('[mixer] getToneInput called but song chain not initialized');
+      // Fallback: initialize if needed
+      init();
+    }
     return songChainRef.current!.input;
-  }, [ensure]);
+  }, [init]);
 
   const getNoiseInput = useCallback(() => {
-    ensure();
+    if (!noiseChainRef.current) {
+      init();
+    }
     return noiseChainRef.current!.input;
-  }, [ensure]);
+  }, [init]);
 
   const getAmbienceInput = useCallback(() => {
-    ensure();
+    if (!ambienceChainRef.current) {
+      init();
+    }
     return ambienceChainRef.current!.input;
-  }, [ensure]);
+  }, [init]);
 
   const getAmbientMusicInput = useCallback(() => {
-    ensure();
+    if (!ambientMusicChainRef.current) {
+      init();
+    }
     return ambientMusicChainRef.current!.input;
-  }, [ensure]);
+  }, [init]);
 
   // If context exists, keep params applied live
   useEffect(() => {
