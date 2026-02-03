@@ -317,10 +317,38 @@ export function useAudioMixer(
   }, []);
 
   const init = useCallback(() => {
-    if (!ctxRef.current) {
+    // Recreate AudioContext if it was closed (can happen after hot reloads or browser policy changes)
+    if (!ctxRef.current || ctxRef.current.state === "closed") {
       ctxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
+
     const ctx = ctxRef.current;
+
+    // If we ever end up with nodes created from a previous AudioContext,
+    // they will silently produce no sound. Detect and rebuild.
+    const hasStaleNodes =
+      (masterOutRef.current && masterOutRef.current.context !== ctx) ||
+      (songChainRef.current && songChainRef.current.input.context !== ctx) ||
+      (noiseChainRef.current && noiseChainRef.current.input.context !== ctx) ||
+      (ambienceChainRef.current && ambienceChainRef.current.input.context !== ctx) ||
+      (ambientMusicChainRef.current && ambientMusicChainRef.current.input.context !== ctx);
+
+    if (hasStaleNodes) {
+      try {
+        masterOutRef.current?.disconnect();
+      } catch {
+        // ignore
+      }
+
+      // Drop references so everything is recreated for the current ctx
+      masterOutRef.current = null;
+      songChainRef.current = null;
+      noiseChainRef.current = null;
+      ambienceChainRef.current = null;
+      ambientMusicChainRef.current = null;
+      impulseBufferRef.current = null;
+      wiredRef.current = false;
+    }
 
     // Create impulse buffer once
     if (!impulseBufferRef.current) {
