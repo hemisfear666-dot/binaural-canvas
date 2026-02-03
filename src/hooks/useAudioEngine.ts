@@ -176,6 +176,14 @@ export function useAudioEngine(
       const now = ctx.currentTime + startOffset;
       const endTime = now + duration;
 
+      // Defensive: never let NaN/Infinity propagate into WebAudio params
+      const toFinite = (v: unknown, fallback: number) =>
+        typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+      const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+
+      const startCarrier = clamp(toFinite(section.carrier, 200), 1, 20000);
+      const startBeat = clamp(toFinite(section.beat, 10), 0.01, 2000);
+
       const rampEnabled = getRampEnabled(section, clipRamp);
       const needsFilter = clipWaveform !== 'sine';
 
@@ -193,18 +201,22 @@ export function useAudioEngine(
       }
 
       // Use clip-level ramp targets if available, otherwise fall back to section-level
-      const finalCarrier = rampEnabled 
-        ? (clipRamp?.endCarrier ?? section.endCarrier ?? section.carrier) 
-        : section.carrier;
-      const finalBeat = rampEnabled 
-        ? (clipRamp?.endBeat ?? section.endBeat ?? section.beat) 
-        : section.beat;
+      // (treat NaN as "missing" by re-validating with toFinite)
+      const rawFinalCarrier = rampEnabled
+        ? (clipRamp?.endCarrier ?? section.endCarrier ?? startCarrier)
+        : startCarrier;
+      const rawFinalBeat = rampEnabled
+        ? (clipRamp?.endBeat ?? section.endBeat ?? startBeat)
+        : startBeat;
+
+      const finalCarrier = clamp(toFinite(rawFinalCarrier, startCarrier), 1, 20000);
+      const finalBeat = clamp(toFinite(rawFinalBeat, startBeat), 0.01, 2000);
 
       if (isIsochronic) {
         const osc = ctx.createOscillator();
         osc.type = clipWaveform;
-        osc.frequency.setValueAtTime(section.carrier, now);
-        if (rampEnabled && finalCarrier !== section.carrier) {
+        osc.frequency.setValueAtTime(startCarrier, now);
+        if (rampEnabled && finalCarrier !== startCarrier) {
           osc.frequency.linearRampToValueAtTime(finalCarrier, endTime);
         }
 
@@ -212,8 +224,8 @@ export function useAudioEngine(
         amp.gain.value = 0.5;
 
         const lfo = ctx.createOscillator();
-        lfo.frequency.setValueAtTime(section.beat, now);
-        if (rampEnabled && finalBeat !== section.beat) {
+        lfo.frequency.setValueAtTime(startBeat, now);
+        if (rampEnabled && finalBeat !== startBeat) {
           lfo.frequency.linearRampToValueAtTime(finalBeat, endTime);
         }
 
@@ -256,14 +268,14 @@ export function useAudioEngine(
         panL.pan.value = -1;
         panR.pan.value = 1;
 
-        const leftFreqStart = section.carrier - section.beat / 2;
-        const rightFreqStart = section.carrier + section.beat / 2;
+        const leftFreqStart = Math.max(1, startCarrier - startBeat / 2);
+        const rightFreqStart = Math.max(1, startCarrier + startBeat / 2);
         oscL.frequency.setValueAtTime(leftFreqStart, now);
         oscR.frequency.setValueAtTime(rightFreqStart, now);
 
-        if (rampEnabled && (finalCarrier !== section.carrier || finalBeat !== section.beat)) {
-          const leftFreqEnd = finalCarrier - finalBeat / 2;
-          const rightFreqEnd = finalCarrier + finalBeat / 2;
+        if (rampEnabled && (finalCarrier !== startCarrier || finalBeat !== startBeat)) {
+          const leftFreqEnd = Math.max(1, finalCarrier - finalBeat / 2);
+          const rightFreqEnd = Math.max(1, finalCarrier + finalBeat / 2);
           oscL.frequency.linearRampToValueAtTime(leftFreqEnd, endTime);
           oscR.frequency.linearRampToValueAtTime(rightFreqEnd, endTime);
         }
@@ -337,6 +349,9 @@ export function useAudioEngine(
     if (!audioCtxRef.current) return;
 
     const schedule = getPlaybackSchedule();
+
+    const finiteOrUndef = (v: unknown): number | undefined =>
+      typeof v === 'number' && Number.isFinite(v) ? v : undefined;
     
     for (const event of schedule) {
       const clipEnd = event.startTime + event.duration;
@@ -357,12 +372,19 @@ export function useAudioEngine(
       };
       
       // Calculate progress for ramping (when seeking mid-clip)
-      const progress = clipStartOffset / event.duration;
+      const denom = event.duration > 0 ? event.duration : 1;
+      const progress = clipStartOffset / denom;
       const rampEnabled = getRampEnabled(event.section, clipRamp);
       
       // Determine the final targets (clip-level overrides section-level)
-      const targetCarrier = clipRamp.endCarrier ?? event.section.endCarrier ?? event.section.carrier;
-      const targetBeat = clipRamp.endBeat ?? event.section.endBeat ?? event.section.beat;
+      const targetCarrier =
+        finiteOrUndef(clipRamp.endCarrier) ??
+        finiteOrUndef(event.section.endCarrier) ??
+        event.section.carrier;
+      const targetBeat =
+        finiteOrUndef(clipRamp.endBeat) ??
+        finiteOrUndef(event.section.endBeat) ??
+        event.section.beat;
       
       // Create a modified section with current progress values
       const currentCarrier = rampEnabled
