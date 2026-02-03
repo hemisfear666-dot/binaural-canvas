@@ -61,11 +61,14 @@ export function useAudioEngine(
   });
 
   const ensureAudioRunning = useCallback(async () => {
+    console.log('[engine] ensureAudioRunning called');
     const ctx = getAudioContext();
     audioCtxRef.current = ctx;
+    console.log('[engine] Got AudioContext, state:', ctx.state);
 
     const needsNewMaster = !masterGainRef.current || masterGainRef.current.context !== ctx;
     if (needsNewMaster) {
+      console.log('[engine] Creating new master gain node');
       try {
         masterGainRef.current?.disconnect();
       } catch {
@@ -73,10 +76,14 @@ export function useAudioEngine(
       }
       masterGainRef.current = ctx.createGain();
       masterGainRef.current.gain.value = 1;
-      masterGainRef.current.connect(getOutputNode());
+      const outputNode = getOutputNode();
+      console.log('[engine] Got output node:', outputNode ? 'valid' : 'NULL');
+      masterGainRef.current.connect(outputNode);
+      console.log('[engine] Connected master gain to output node');
     }
 
     const ok = await resumeAudioContext(ctx, 'engine');
+    console.log('[engine] AudioContext resumed:', ok, 'state:', ctx.state);
     if (!ok) {
       console.warn('[engine] AudioContext not running; user gesture may be required');
     }
@@ -168,7 +175,14 @@ export function useAudioEngine(
         };
       }
     ) => {
-      if (!audioCtxRef.current || !masterGainRef.current) return;
+      if (!audioCtxRef.current || !masterGainRef.current) {
+        console.warn('[engine] playTone: missing ctx or masterGain', { 
+          hasCtx: !!audioCtxRef.current, 
+          hasMaster: !!masterGainRef.current 
+        });
+        return;
+      }
+      console.log('[engine] playTone called:', { clipId: opts.clipId, duration: opts.duration, carrier: opts.section.carrier, beat: opts.section.beat });
 
       const ctx = audioCtxRef.current;
       const { section, duration, clipId, clipWaveform, clipRamp } = opts;
@@ -346,9 +360,13 @@ export function useAudioEngine(
 
   // Schedule all clips from a given time
   const scheduleAllClips = useCallback((fromTime: number) => {
-    if (!audioCtxRef.current) return;
+    if (!audioCtxRef.current) {
+      console.warn('[engine] scheduleAllClips: no AudioContext');
+      return;
+    }
 
     const schedule = getPlaybackSchedule();
+    console.log('[engine] scheduleAllClips from', fromTime, 'schedule length:', schedule.length);
 
     const finiteOrUndef = (v: unknown): number | undefined =>
       typeof v === 'number' && Number.isFinite(v) ? v : undefined;
@@ -596,12 +614,17 @@ export function useAudioEngine(
 
   const play = useCallback(
     (fromTime: number = 0) => {
+      console.log('[engine] play() called, fromTime:', fromTime);
       void (async () => {
         const ok = await ensureAudioRunning();
+        console.log('[engine] ensureAudioRunning returned:', ok);
         if (!ok) return;
 
         cleanupMainNodes();
-        if (!audioCtxRef.current) return;
+        if (!audioCtxRef.current) {
+          console.warn('[engine] play: no AudioContext after ensure');
+          return;
+        }
 
         // Reset repeat-once flag when starting fresh
         if (fromTime === 0) {
@@ -791,8 +814,10 @@ export function useAudioEngine(
 
   const testSection = useCallback(
     (sectionIndex: number) => {
+      console.log('[engine] testSection called, index:', sectionIndex);
       void (async () => {
         const ok = await ensureAudioRunning();
+        console.log('[engine] testSection: ensureAudioRunning returned:', ok);
         if (!ok) return;
 
         if (state.playbackState === 'playing') {
@@ -805,7 +830,15 @@ export function useAudioEngine(
         cleanupTestNodes();
 
         const section = sections[sectionIndex];
-        if (!section || !audioCtxRef.current || !masterGainRef.current) return;
+        if (!section || !audioCtxRef.current || !masterGainRef.current) {
+          console.warn('[engine] testSection: missing section/ctx/master', {
+            hasSection: !!section,
+            hasCtx: !!audioCtxRef.current,
+            hasMaster: !!masterGainRef.current
+          });
+          return;
+        }
+        console.log('[engine] testSection: starting oscillators for', section.name, 'carrier:', section.carrier, 'beat:', section.beat);
 
         const ctx = audioCtxRef.current;
         const now = ctx.currentTime;
