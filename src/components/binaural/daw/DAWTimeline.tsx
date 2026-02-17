@@ -124,10 +124,13 @@ export const DAWTimeline = memo(function DAWTimeline({
   // Ramp editor state
   const [rampEditorClipId, setRampEditorClipId] = useState<string | null>(null);
 
-  // Drag state for drop zones
+  // Drag state for drop zones (section library drag)
   const [dragOverTrackId, setDragOverTrackId] = useState<string | null>(null);
   const [dragOverNewTrack, setDragOverNewTrack] = useState(false);
   const [dropTime, setDropTime] = useState<number>(0);
+
+  // Clip dragging state (cross-track drag)
+  const [clipDraggingId, setClipDraggingId] = useState<string | null>(null);
 
   // Initialize from sections
   useEffect(() => {
@@ -463,6 +466,30 @@ export const DAWTimeline = memo(function DAWTimeline({
     ));
   }, []);
 
+  // Handle clip drag state changes (for showing new-track zone)
+  const handleClipDragStateChange = useCallback((clipId: string, isDragging: boolean) => {
+    setClipDraggingId(isDragging ? clipId : null);
+  }, []);
+
+  // Handle clip dropped on new-track zone
+  const handleClipMoveToNewTrack = useCallback((clipId: string, startTime: number) => {
+    const colorIndex = tracks.length % TRACK_COLORS.length;
+    const newTrack: TimelineTrack = {
+      id: generateId(),
+      name: `Track ${tracks.length + 1}`,
+      color: TRACK_COLORS[colorIndex],
+      muted: false,
+      solo: false,
+      volume: 1,
+    };
+    
+    setTracks(prev => [...prev, newTrack]);
+    setClips(prev => prev.map(c => 
+      c.id === clipId ? { ...c, trackId: newTrack.id } : c
+    ));
+    toast.success('Moved clip to new track');
+  }, [tracks.length]);
+
   const handleClipResize = useCallback((clipId: string, newDuration: number, edge: 'start' | 'end') => {
     setClips(prev => prev.map(c => 
       c.id === clipId ? { ...c, duration: Math.max(0.5, newDuration) } : c
@@ -662,25 +689,32 @@ export const DAWTimeline = memo(function DAWTimeline({
                 onDragOver={handleTrackDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleTrackDrop}
+                onClipDragStateChange={handleClipDragStateChange}
+                onClipMoveToNewTrack={handleClipMoveToNewTrack}
               />
             ))}
             
-            {/* Drop zone for new track */}
+            {/* Drop zone for new track - visible when dragging sections OR clips */}
             <div
+              data-new-track-zone
               className={`
-                flex items-center justify-center h-14 border-2 border-dashed transition-all
-                ${dragOverNewTrack 
-                  ? 'border-primary bg-primary/10' 
-                  : 'border-border/30 hover:border-border/50'
+                flex items-center justify-center border-2 border-dashed transition-all
+                ${clipDraggingId 
+                  ? 'h-14 border-primary/60 bg-primary/5 opacity-100' 
+                  : dragOverNewTrack 
+                    ? 'h-14 border-primary bg-primary/10' 
+                    : 'h-14 border-border/30 hover:border-border/50'
                 }
               `}
               onDragOver={handleNewTrackDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleNewTrackDrop}
             >
-              <div className="flex items-center gap-2 text-muted-foreground">
+              <div className={`flex items-center gap-2 ${clipDraggingId ? 'text-primary' : 'text-muted-foreground'}`}>
                 <Plus className="h-4 w-4" />
-                <span className="text-xs">Drop here to create new track</span>
+                <span className="text-xs">
+                  {clipDraggingId ? 'Drop to move to new track' : 'Drop here to create new track'}
+                </span>
               </div>
             </div>
           </div>

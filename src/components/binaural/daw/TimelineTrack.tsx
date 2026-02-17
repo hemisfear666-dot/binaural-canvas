@@ -34,12 +34,15 @@ interface TimelineTrackProps {
   onClipDoubleClick: (clipId: string) => void;
   onTrackClick: (trackId: string, time: number) => void;
   snapToGrid: (time: number) => number;
-  // Drag-drop props
+  // Drag-drop props (section library)
   isDragOver?: boolean;
   dropTime?: number;
   onDragOver?: (e: React.DragEvent, trackId: string, trackElement: HTMLElement) => void;
   onDragLeave?: () => void;
   onDrop?: (e: React.DragEvent, trackId: string, trackElement: HTMLElement) => void;
+  // Clip cross-track drag props
+  onClipDragStateChange?: (clipId: string, isDragging: boolean) => void;
+  onClipMoveToNewTrack?: (clipId: string, startTime: number) => void;
 }
 
 export const TimelineTrackRow = memo(function TimelineTrackRow({
@@ -65,6 +68,8 @@ export const TimelineTrackRow = memo(function TimelineTrackRow({
   onDragOver,
   onDragLeave,
   onDrop,
+  onClipDragStateChange,
+  onClipMoveToNewTrack,
 }: TimelineTrackProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(track.name);
@@ -208,6 +213,7 @@ export const TimelineTrackRow = memo(function TimelineTrackRow({
       {/* Track content area - clips go here */}
       <div 
         ref={trackContentRef}
+        data-track-id={track.id}
         className={`flex-1 h-14 relative overflow-hidden cursor-crosshair transition-colors ${
           isDragOver ? 'bg-primary/10 ring-2 ring-primary ring-inset' : ''
         }`}
@@ -274,6 +280,8 @@ export const TimelineTrackRow = memo(function TimelineTrackRow({
             onContextMenu={onClipContextMenu}
             onDoubleClick={onClipDoubleClick}
             snapToGrid={snapToGrid}
+            onDragStateChange={onClipDragStateChange}
+            onMoveToNewTrack={onClipMoveToNewTrack}
           />
         ))}
       </div>
