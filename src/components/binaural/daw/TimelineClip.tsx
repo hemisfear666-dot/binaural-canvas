@@ -16,6 +16,8 @@ interface TimelineClipProps {
   onContextMenu: (e: React.MouseEvent, clipId: string) => void;
   onDoubleClick: (clipId: string) => void;
   snapToGrid: (time: number) => number;
+  onDragStateChange?: (clipId: string, isDragging: boolean) => void;
+  onMoveToNewTrack?: (clipId: string, startTime: number) => void;
 }
 
 export const TimelineClipComponent = memo(function TimelineClipComponent({
@@ -31,11 +33,15 @@ export const TimelineClipComponent = memo(function TimelineClipComponent({
   onContextMenu,
   onDoubleClick,
   snapToGrid,
+  onDragStateChange,
+  onMoveToNewTrack,
 }: TimelineClipProps) {
   const clipRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState<'start' | 'end' | null>(null);
   const dragStartRef = useRef({ x: 0, startTime: 0, duration: 0 });
+  const lastTargetTrackRef = useRef<string | null>(null);
+  const droppedOnNewTrackRef = useRef(false);
 
   const width = clip.duration * pixelsPerSecond;
   const left = clip.startTime * pixelsPerSecond;
@@ -53,8 +59,11 @@ export const TimelineClipComponent = memo(function TimelineClipComponent({
       startTime: clip.startTime,
       duration: clip.duration,
     };
+    lastTargetTrackRef.current = null;
+    droppedOnNewTrackRef.current = false;
     setIsDragging(true);
-  }, [clip.id, clip.startTime, clip.duration, onSelect]);
+    onDragStateChange?.(clip.id, true);
+  }, [clip.id, clip.startTime, clip.duration, onSelect, onDragStateChange]);
 
   // Handle resize handles
   const handleResizeStart = useCallback((e: React.MouseEvent, edge: 'start' | 'end') => {
@@ -79,7 +88,39 @@ export const TimelineClipComponent = memo(function TimelineClipComponent({
 
       if (isDragging) {
         const newStartTime = snapToGrid(Math.max(0, dragStartRef.current.startTime + deltaTime));
-        onMove(clip.id, newStartTime);
+        
+        // Detect target track via elementFromPoint
+        // Temporarily hide clip to find what's underneath
+        const clipEl = clipRef.current;
+        if (clipEl) {
+          const prevPointerEvents = clipEl.style.pointerEvents;
+          clipEl.style.pointerEvents = 'none';
+          const elementUnder = document.elementFromPoint(e.clientX, e.clientY);
+          clipEl.style.pointerEvents = prevPointerEvents;
+          
+          if (elementUnder) {
+            // Check for new track zone
+            const newTrackZone = elementUnder.closest('[data-new-track-zone]');
+            if (newTrackZone) {
+              lastTargetTrackRef.current = null;
+              droppedOnNewTrackRef.current = true;
+              onMove(clip.id, newStartTime);
+            } else {
+              // Check for track
+              const trackEl = elementUnder.closest('[data-track-id]');
+              const targetTrackId = trackEl?.getAttribute('data-track-id') || null;
+              droppedOnNewTrackRef.current = false;
+              if (targetTrackId) {
+                lastTargetTrackRef.current = targetTrackId;
+              }
+              onMove(clip.id, newStartTime, targetTrackId || undefined);
+            }
+          } else {
+            onMove(clip.id, newStartTime);
+          }
+        } else {
+          onMove(clip.id, newStartTime);
+        }
       } else if (isResizing === 'end') {
         const newDuration = Math.max(
           minWidth / pixelsPerSecond,
@@ -100,8 +141,17 @@ export const TimelineClipComponent = memo(function TimelineClipComponent({
     };
 
     const handleMouseUp = () => {
+      // Check if we should move to a new track
+      if (isDragging && droppedOnNewTrackRef.current) {
+        const clip_current = clipRef.current;
+        // Find the clip's current startTime from state
+        onMoveToNewTrack?.(clip.id, clip.startTime);
+      }
       setIsDragging(false);
       setIsResizing(null);
+      onDragStateChange?.(clip.id, false);
+      lastTargetTrackRef.current = null;
+      droppedOnNewTrackRef.current = false;
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -110,7 +160,7 @@ export const TimelineClipComponent = memo(function TimelineClipComponent({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, isResizing, clip.id, pixelsPerSecond, snapToGrid, onMove, onResize]);
+  }, [isDragging, isResizing, clip.id, clip.startTime, pixelsPerSecond, snapToGrid, onMove, onResize, onDragStateChange, onMoveToNewTrack]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
